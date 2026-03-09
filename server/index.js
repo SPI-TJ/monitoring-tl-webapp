@@ -57,7 +57,7 @@ if (NODE_ENV === 'production') {
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://monitoring-tl-webapp.vercel.app/'];
 
 app.use(cors({
   origin: function (origin, callback) {
