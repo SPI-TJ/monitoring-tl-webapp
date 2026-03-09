@@ -3047,7 +3047,7 @@
                                 autocomplete="current-password" />
                         </div>
                     </div>
-                    <button class="btn-login" id="loginBtn" onclick="doLogin()">Masuk →</button>
+                    <button class="btn-login" id="loginBtn">Masuk →</button>
 
                     <div style="
                         margin-top: 20px;
@@ -3555,7 +3555,7 @@
             // Desktop nav
             $('mainNav').innerHTML = tabs.map(function (t) {
                 var b = t.badge && rc > 0 ? ' <span class="nav-badge">' + rc + '</span>' : '';
-                return '<div class="nav-item ' + (S.tab === t.id ? 'active' : '') + '" onclick="switchTab(\'' + t.id + '\')">' +
+                return '<div class="nav-item ' + (S.tab === t.id ? 'active' : '') + '" data-tab="' + t.id + '">' +
                     '<span class="nav-icon">' + t.icon + '</span>' + t.label + b + '</div>';
             }).join('');
 
@@ -3564,7 +3564,7 @@
             if (mn) {
                 mn.innerHTML = tabs.map(function (t) {
                     var badge = t.badge && rc > 0 ? '<span class="mnav-badge">' + rc + '</span>' : '';
-                    return '<div class="mnav-item ' + (S.tab === t.id ? 'active' : '') + '" onclick="switchTab(\'' + t.id + '\')">' +
+                    return '<div class="mnav-item ' + (S.tab === t.id ? 'active' : '') + '" data-tab="' + t.id + '">' +
                         '<div class="mnav-icon">' + t.icon + badge + '</div>' +
                         '<div class="mnav-label">' + t.label + '</div>' +
                         '</div>';
@@ -4779,6 +4779,33 @@
         function showMain(h) { $('mainContent').innerHTML = h; }
         function openModal(id) { $(id).classList.add('open'); }
         function closeModal(id) { $(id).classList.remove('open'); }
+
+        // Bind event handlers tanpa inline onclick (lebih tahan terhadap kebijakan CSP/browser)
+        (function bindUiHandlers() {
+            var loginBtn = $('loginBtn');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    doLogin();
+                });
+            }
+
+            var mainNav = $('mainNav');
+            if (mainNav) {
+                mainNav.addEventListener('click', function (e) {
+                    var it = e.target.closest('.nav-item');
+                    if (it && it.dataset && it.dataset.tab) switchTab(it.dataset.tab);
+                });
+            }
+
+            var mobileNav = $('mobileNav');
+            if (mobileNav) {
+                mobileNav.addEventListener('click', function (e) {
+                    var it = e.target.closest('.mnav-item');
+                    if (it && it.dataset && it.dataset.tab) switchTab(it.dataset.tab);
+                });
+            }
+        })();
 
         document.querySelectorAll('.overlay').forEach(function (el) {
             el.addEventListener('click', function (e) { if (e.target === el) el.classList.remove('open'); });
