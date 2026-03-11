@@ -256,7 +256,7 @@ router.put('/update/:rowIndex', async (req, res) => {
         return updatedData[header] !== undefined ? updatedData[header] : existingObj[header];
       } else {
         // PIC hanya bisa update: Tindak Lanjut, Progres%, Request Close, Link Evidence
-        const picAllowedFields = ['Tindak Lanjut', 'Progres%', 'Request Close', 'Link Evidence'];
+        const picAllowedFields = ['Tindak Lanjut', 'Progres%', 'Request Close', 'Link Evidence', 'Tanggapan Auditee'];
         if (picAllowedFields.includes(header) && updatedData[header] !== undefined) {
           return updatedData[header];
         }
