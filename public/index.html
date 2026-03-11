@@ -5,13 +5,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Portal Monitor TL — PT Transportasi Jakarta</title>
-    <meta name="description" content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
+    <meta name="description"
+        content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
 
     <!-- Open Graph / WhatsApp preview -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Portal Monitor TL" />
     <meta property="og:title" content="Portal Monitor TL — PT Transportasi Jakarta" />
-    <meta property="og:description" content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
+    <meta property="og:description"
+        content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
     <meta property="og:url" content="https://monitoring-tl-webapp.vercel.app/" />
     <!-- NOTE: WhatsApp paling stabil pakai PNG/JPG. Saat ini belum ada aset gambar di /public, jadi og:image dikosongkan dulu. -->
     <meta property="og:image" content="https://monitoring-tl-webapp.vercel.app/og-image.png" />
@@ -20,7 +22,8 @@
     <!-- Twitter card (opsional, tetap berguna) -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Portal Monitor TL — PT Transportasi Jakarta" />
-    <meta name="twitter:description" content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
+    <meta name="twitter:description"
+        content="Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian." />
     <meta name="twitter:image" content="https://monitoring-tl-webapp.vercel.app/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
@@ -397,6 +400,31 @@
             border-color: var(--tj-blue);
             background: var(--tj-blue-pale);
             box-shadow: 0 0 0 3px rgba(0, 102, 179, .12);
+        }
+
+        .ff-pass-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: var(--text3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: color .2s;
+        }
+
+        .ff-pass-toggle:hover {
+            color: var(--tj-blue);
+        }
+
+        .ff-input.with-toggle {
+            padding-right: 42px;
         }
 
         .login-err {
@@ -3036,7 +3064,8 @@
                     </div>
                 </div>
                 <h1 class="login-headline">Monitor<br /><span>Tindak Lanjut</span><br />Hasil Audit</h1>
-                <p class="login-tagline">Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui progres penyelesaian.</p>
+                <p class="login-tagline">Portal pengelolaan tindak lanjut hasil audit untuk memantau serta memperbarui
+                    progres penyelesaian.</p>
                 <div class="login-stats">
                     <div class="ls-item">
                         <div class="n">Tindak Lanjut</div>
@@ -3074,8 +3103,24 @@
                         <label class="ff-label">Password</label>
                         <div class="ff-input-wrap">
                             <span class="ff-icon">🔑</span>
-                            <input type="password" class="ff-input" id="loginPass" placeholder="Masukkan password"
-                                autocomplete="current-password" />
+                            <input type="password" class="ff-input with-toggle" id="loginPass"
+                                placeholder="Masukkan password" autocomplete="current-password" />
+                            <button type="button" class="ff-pass-toggle" id="togglePassBtn" title="Lihat password"
+                                aria-label="Toggle password visibility">
+                                <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                                    <path
+                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     <button class="btn-login" id="loginBtn">Masuk →</button>
@@ -3096,11 +3141,11 @@
                                 <div style="font-weight:700;color:var(--tj-blue);margin-bottom:5px;">Informasi Akses
                                 </div>
                                 <p style="margin-bottom:6px;">Username dan password akun PIC telah dibagikan kepada
-                                    <strong>Perwakilan Divisi</strong> masing-masing.</p>
+                                    <strong>Kepala Divisi</strong> masing-masing.
+                                </p>
                                 <p>Jika lupa username atau password, silakan hubungi <strong>Admin Monitoring Tindak
                                         Lanjut</strong> — Satuan Pengawas Internal:</p>
-                                <a href="https://wa.me/6285156165291?"
-                                    target="_blank" style="
+                                <a href="https://wa.me/6285156165291?" target="_blank" style="
                                         display: inline-flex;
                                         align-items: center;
                                         gap: 6px;
@@ -3530,8 +3575,71 @@
         var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
 
         /* ══════════════════════════════════════
+           SESSION MANAGEMENT
+        ══════════════════════════════════════ */
+        var SESSION_KEY = 'ptj_session';
+        var SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam dalam ms
+        var _idleTimer = null;
+
+        function saveSession(user) {
+            var now = Date.now();
+            localStorage.setItem(SESSION_KEY, JSON.stringify({ user: user, lastActivity: now }));
+        }
+        function loadSession() {
+            try {
+                var raw = localStorage.getItem(SESSION_KEY);
+                if (!raw) return null;
+                var sess = JSON.parse(raw);
+                if (!sess || !sess.user || !sess.lastActivity) return null;
+                if (Date.now() - sess.lastActivity > SESSION_TIMEOUT) { clearSession(); return null; }
+                return sess.user;
+            } catch (e) { return null; }
+        }
+        function clearSession() { localStorage.removeItem(SESSION_KEY); }
+        function touchSession() {
+            try {
+                var raw = localStorage.getItem(SESSION_KEY);
+                if (!raw) return;
+                var sess = JSON.parse(raw);
+                if (sess) { sess.lastActivity = Date.now(); localStorage.setItem(SESSION_KEY, JSON.stringify(sess)); }
+            } catch (e) { }
+        }
+        function startIdleWatcher() {
+            ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(function (evt) {
+                document.addEventListener(evt, touchSession, { passive: true });
+            });
+            if (_idleTimer) clearInterval(_idleTimer);
+            _idleTimer = setInterval(function () {
+                try {
+                    var raw = localStorage.getItem(SESSION_KEY);
+                    if (!raw) { logout(); return; }
+                    var sess = JSON.parse(raw);
+                    if (!sess || !sess.lastActivity) { logout(); return; }
+                    if (Date.now() - sess.lastActivity > SESSION_TIMEOUT) {
+                        toast('Sesi habis karena tidak aktif 1 jam. Silakan login kembali.', 'toast-error');
+                        setTimeout(logout, 2500);
+                    }
+                } catch (e) { }
+            }, 60 * 1000);
+        }
+        function stopIdleWatcher() {
+            if (_idleTimer) { clearInterval(_idleTimer); _idleTimer = null; }
+            ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(function (evt) {
+                document.removeEventListener(evt, touchSession);
+            });
+        }
+
+        /* ══════════════════════════════════════
            LOGIN
         ══════════════════════════════════════ */
+        function toggleLoginPass() {
+            var inp = $('loginPass');
+            var isHidden = inp.type === 'password';
+            inp.type = isHidden ? 'text' : 'password';
+            $('eyeOpen').style.display = isHidden ? 'none' : '';
+            $('eyeClosed').style.display = isHidden ? '' : 'none';
+            $('togglePassBtn').title = isHidden ? 'Sembunyikan password' : 'Lihat password';
+        }
         function doLogin() {
             var u = $('loginUser').value.trim(), p = $('loginPass').value.trim();
             if (!u || !p) { showLoginErr('Username dan password harus diisi.'); return; }
@@ -3541,7 +3649,7 @@
             API.login(u, p)
                 .then(function (r) {
                     btn.innerHTML = 'Masuk →'; btn.disabled = false;
-                    if (r && r.success) { S.user = r.user; startApp(); }
+                    if (r && r.success) { S.user = r.user; saveSession(r.user); startApp(); }
                     else showLoginErr(r && r.message ? r.message : 'Login gagal.');
                 })
                 .catch(function (e) {
@@ -3552,6 +3660,8 @@
         function showLoginErr(m) { var e = $('loginErr'); e.textContent = '⚠ ' + m; e.classList.add('show'); }
         function hideLoginErr() { $('loginErr').classList.remove('show'); }
         function logout() {
+            stopIdleWatcher();
+            clearSession();
             S = {
                 user: null, allRows: [], filtered: [], stats: null, editIdx: null, delIdx: null,
                 editUser: null, pending: [], page: 1, PAGE: 50, tab: 'dashboard',
@@ -3573,9 +3683,19 @@
             $('hdrUser').textContent = u.nama || u.username;
             $('hdrRole').textContent = u.role;
             $('hdrRole').className = 'u-role ' + (u.role === 'Admin' ? 'role-admin' : 'role-pic');
+            startIdleWatcher();
             buildNav();
             fetchAll(function () { switchTab('dashboard'); });
         }
+
+        // Auto-restore sesi saat halaman pertama kali dimuat
+        (function initSession() {
+            var savedUser = loadSession();
+            if (savedUser) {
+                S.user = savedUser;
+                startApp();
+            }
+        })();
         function buildNav() {
             var tabs = S.user.role === 'Admin' ? TABS_ADMIN : TABS_PIC;
             var rc = S.allRows.filter(function (r) {
@@ -4820,6 +4940,13 @@
                 loginBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     doLogin();
+                });
+            }
+            var togglePassBtn = $('togglePassBtn');
+            if (togglePassBtn) {
+                togglePassBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    toggleLoginPass();
                 });
             }
 
