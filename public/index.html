@@ -3403,6 +3403,22 @@
                     <div class="form-col">
                         <span class="form-label">Password <span class="req">*</span></span>
                         <input type="password" id="uPass" placeholder="password" />
+                        <button type="button" class="ff-pass-toggle" id="togglePassBtn" title="Lihat password"
+                            aria-label="Toggle password visibility">
+                            <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                        </button>
                     </div>
                     <div class="form-col">
                         <span class="form-label">Role</span>
@@ -4831,12 +4847,24 @@
                 .catch(function (e) { showErrBox('Gagal.', e.message); });
         }
         function renderUsers(users) {
-            var rows = users.map(function (u) {
+            var rows = users.map(function (u, idx) {
+                var pwdId = 'pwd-val-' + idx;
+                var eyeId = 'pwd-eye-' + idx;
+                var maskedPwd = u['Password'] ? '••••••••' : '—';
+                var realPwd = escH(String(u['Password'] || ''));
                 return '<tr>' +
                     '<td><span class="mono">' + escH(String(u['Username'] || '')) + '</span></td>' +
                     '<td><span class="badge ' + (u['Role'] === 'Admin' ? 'badge-admin' : 'badge-pic') + '">' + escH(u['Role'] || '') + '</span></td>' +
                     '<td>' + escH(u['Divisi'] || '—') + '</td>' +
                     '<td>' + escH(u['Nama'] || '—') + '</td>' +
+                    '<td>' +
+                    '<div style="display:flex;align-items:center;gap:6px">' +
+                    '<span id="' + pwdId + '" class="mono" style="letter-spacing:.08em;font-size:13px">' + maskedPwd + '</span>' +
+                    (u['Password'] ? '<button id="' + eyeId + '" class="btn btn-subtle btn-sm" title="Tampilkan/Sembunyikan Password" ' +
+                        'data-pwd="' + realPwd + '" data-masked="' + maskedPwd + '" data-show="0" ' +
+                        'onclick="togglePwdCell(this,\'' + pwdId + '\')" style="padding:2px 7px;font-size:13px">👁</button>' : '') +
+                    '</div>' +
+                    '</td>' +
                     '<td><div style="display:flex;gap:6px">' +
                     '<button class="btn btn-subtle btn-sm" data-un="' + escH(String(u['Username'] || '')) + '" onclick="openEditUser(this.dataset.un)">✏️ Edit</button>' +
                     '<button class="btn btn-red btn-sm" data-un="' + escH(String(u['Username'] || '')) + '" onclick="delUser(this.dataset.un)">🗑</button>' +
@@ -4844,7 +4872,11 @@
             }).join('');
 
             // Mobile user cards
-            var uCards = users.map(function (u) {
+            var uCards = users.map(function (u, idx) {
+                var mPwdId = 'mpwd-val-' + idx;
+                var mEyeId = 'mpwd-eye-' + idx;
+                var maskedPwd = u['Password'] ? '••••••••' : '—';
+                var realPwd = escH(String(u['Password'] || ''));
                 return '<div class="dc" style="cursor:default">' +
                     '<div class="dc-head">' +
                     '<div class="dc-meta">' +
@@ -4855,6 +4887,13 @@
                     '</div>' +
                     '<div class="dc-body" style="padding:8px 14px">' +
                     '<div class="dc-field-lbl">Username</div><div class="dc-field-val mono">' + escH(u['Username'] || '') + '</div>' +
+                    '<div class="dc-field-lbl" style="margin-top:6px">Password</div>' +
+                    '<div class="dc-field-val" style="display:flex;align-items:center;gap:6px">' +
+                    '<span id="' + mPwdId + '" class="mono" style="letter-spacing:.08em;font-size:13px">' + maskedPwd + '</span>' +
+                    (u['Password'] ? '<button id="' + mEyeId + '" class="btn btn-subtle btn-sm" title="Tampilkan/Sembunyikan Password" ' +
+                        'data-pwd="' + realPwd + '" data-masked="' + maskedPwd + '" data-show="0" ' +
+                        'onclick="togglePwdCell(this,\'' + mPwdId + '\')" style="padding:2px 7px;font-size:13px">👁</button>' : '') +
+                    '</div>' +
                     '</div>' +
                     '<div class="dc-foot">' +
                     '<button class="btn btn-subtle btn-sm" data-un="' + escH(String(u['Username'] || '')) + '" onclick="openEditUser(this.dataset.un)">✏️ Edit</button>' +
@@ -4868,7 +4907,7 @@
                 '<div class="card-header"><div><div class="card-title">👤 Manajemen User</div><div class="card-subtitle">' + users.length + ' user terdaftar</div></div>' +
                 '<button class="btn btn-primary btn-sm" onclick="openAddUser()">+ Tambah User</button></div>' +
                 '<div class="table-scroll"><table>' +
-                '<thead><tr><th>Username</th><th>Role</th><th>Divisi</th><th>Nama</th><th>Aksi</th></tr></thead>' +
+                '<thead><tr><th>Username</th><th>Role</th><th>Divisi</th><th>Nama</th><th>Password</th><th>Aksi</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody>' +
                 '</table></div>' +
                 '<div class="data-cards">' + uCards + '</div>' +
@@ -4890,6 +4929,20 @@
                     toggleDiv(); openModal('mUser');
                 })
                 .catch(function (e) { toast('Error: ' + e.message, 'toast-error'); });
+        }
+        function togglePwdCell(btn, spanId) {
+            var span = document.getElementById(spanId);
+            if (!span) return;
+            var isShowing = btn.dataset.show === '1';
+            if (isShowing) {
+                span.textContent = btn.dataset.masked;
+                btn.title = 'Tampilkan Password';
+                btn.dataset.show = '0';
+            } else {
+                span.textContent = btn.dataset.pwd;
+                btn.title = 'Sembunyikan Password';
+                btn.dataset.show = '1';
+            }
         }
         function toggleDiv() { $('divField').style.display = $('uRole').value === 'PIC' ? 'flex' : 'none'; }
         function saveUser() {
