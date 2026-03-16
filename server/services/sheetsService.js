@@ -19,6 +19,7 @@ class SheetsService {
     this.auth = null;
     this.sheets = null;
     this.initialized = false;
+    this._sheetExists = {}; // cache: { 'Activity Log': true } — reset hanya saat restart server
   }
 
   /**
@@ -276,6 +277,52 @@ class SheetsService {
       num = Math.floor((num - 1) / 26);
     }
     return letter;
+  }
+
+  /**
+   * Pastikan sheet dengan nama tertentu ada, kalau belum ada → buat baru.
+   * Hasil di-cache in-memory → hanya 1 API call per sheet per server lifetime.
+   */
+  async ensureSheet(sheetName, headers) {
+    // Sudah pernah dicek/dibuat dalam sesi ini — skip sepenuhnya
+    if (this._sheetExists[sheetName]) return;
+
+    await this.initialize();
+
+    try {
+      const meta = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.spreadsheetId,
+      });
+
+      const existing = meta.data.sheets.find(
+        s => s.properties.title === sheetName
+      );
+
+      if (existing) {
+        this._sheetExists[sheetName] = true; // tandai cache
+        return;
+      }
+
+      // Buat sheet baru
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.spreadsheetId,
+        resource: {
+          requests: [{
+            addSheet: { properties: { title: sheetName } },
+          }],
+        },
+      });
+
+      if (headers && headers.length > 0) {
+        await this.appendRows(sheetName, [headers]);
+      }
+
+      this._sheetExists[sheetName] = true;
+      console.log(`✅ Sheet "${sheetName}" created with headers`);
+    } catch (error) {
+      console.error(`Error ensuring sheet "${sheetName}":`, error.message);
+      // Jangan set cache supaya bisa retry berikutnya
+    }
   }
 
   /**

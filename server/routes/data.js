@@ -13,6 +13,76 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheetsService');
 
+const ACTIVITY_LOG_SHEET = 'Activity Log';
+const ACTIVITY_LOG_HEADERS = [
+  'Timestamp', 'Username', 'Nama', 'Role', 'Action',
+  'No', 'Judul Audit', 'Rekomendasi', 'Divisi', 'Keterangan'
+];
+
+/**
+ * In-memory cache untuk Activity Log
+ * TTL 90 detik — cukup segar untuk notifikasi, jauh di bawah Sheets quota limit.
+ * Setiap logActivity() langsung invalidate cache supaya baca berikutnya fresh.
+ */
+const _actLogCache = {
+  data: null,         // array of log objects (sudah reversed)
+  ts:   0,            // epoch ms saat cache terakhir diisi
+  TTL:  90 * 1000,    // 90 detik
+
+  isValid() { return this.data !== null && (Date.now() - this.ts) < this.TTL; },
+  set(data)  { this.data = data; this.ts = Date.now(); },
+  invalidate(){ this.data = null; this.ts = 0; },
+};
+
+/**
+ * Pastikan sheet Activity Log ada — delegasi ke sheetsService yang sudah ber-cache
+ */
+async function ensureActivityLog() {
+  await sheetsService.ensureSheet(ACTIVITY_LOG_SHEET, ACTIVITY_LOG_HEADERS);
+}
+
+/**
+ * Tulis satu baris ke Activity Log (non-blocking, error tidak crash request)
+ * @param {Object} actor       - { username, nama, role }
+ * @param {string} action      - label aksi (e.g. 'Edit PIC', 'Approve Close')
+ * @param {Object} rowSnapshot - row data saat itu
+ * @param {string} keterangan  - ringkasan perubahan
+ */
+async function logActivity(actor, action, rowSnapshot, keterangan) {
+  try {
+    await ensureActivityLog();
+
+    // Bangun timestamp Jakarta format DD/MM/YYYY, HH:MM:SS secara manual
+    // agar tidak bergantung pada locale Node.js (id-ID pakai titik, bukan titik dua)
+    const nowJkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    const pad = n => String(n).padStart(2, '0');
+    const timestamp = `${pad(nowJkt.getDate())}/${pad(nowJkt.getMonth() + 1)}/${nowJkt.getFullYear()}, ${pad(nowJkt.getHours())}:${pad(nowJkt.getMinutes())}:${pad(nowJkt.getSeconds())}`;
+
+    const rek = String(rowSnapshot['Rekomendasi'] || '').substring(0, 120);
+    const judul = String(rowSnapshot['Judul Audit'] || '').substring(0, 80);
+
+    const logRow = [
+      timestamp,
+      actor.username || '',
+      actor.nama || actor.username || '',
+      actor.role || '',
+      action,
+      rowSnapshot['No'] || '',
+      judul,
+      rek,
+      rowSnapshot['Divisi'] || '',
+      keterangan || ''
+    ];
+
+    await sheetsService.appendRows(ACTIVITY_LOG_SHEET, [logRow]);
+    _actLogCache.invalidate(); // paksa read fresh pada request berikutnya
+    console.log(`📝 Activity logged: [${action}] by ${actor.username} on row No.${rowSnapshot['No']}`);
+  } catch (err) {
+    // Jangan sampai gagal log merusak operasi utama
+    console.error('⚠ Failed to write activity log:', err.message);
+  }
+}
+
 /**
  * Helper function untuk build stats dari rows
  */
@@ -114,6 +184,41 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /api/data/activity-log
+ * Ambil semua log aktivitas (Admin only).
+ * Hasil di-cache 90 detik server-side untuk menekan Sheets API read quota.
+ */
+router.get('/activity-log', async (req, res) => {
+  try {
+    // Serve dari cache kalau masih valid
+    if (_actLogCache.isValid()) {
+      return res.json({ logs: _actLogCache.data, cached: true });
+    }
+
+    await ensureActivityLog();
+    const rawRows = await sheetsService.getSheetData(ACTIVITY_LOG_SHEET);
+
+    if (!rawRows || rawRows.length < 2) {
+      _actLogCache.set([]);
+      return res.json({ logs: [] });
+    }
+
+    const headers = rawRows[0];
+    const logs = rawRows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, idx) => { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+      return obj;
+    }).reverse();
+
+    _actLogCache.set(logs);
+    res.json({ logs });
+  } catch (error) {
+    console.error('Error fetching activity log:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/data/add
  * Tambah data baru (Admin only)
  * 
@@ -127,7 +232,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/add', async (req, res) => {
   try {
-    const { rows: newRows } = req.body;
+    const { rows: newRows, actor } = req.body;
 
     if (!newRows || !Array.isArray(newRows) || newRows.length === 0) {
       return res.status(400).json({
@@ -169,6 +274,20 @@ router.post('/add', async (req, res) => {
     // Append ke sheet
     await sheetsService.appendRows('Data', rowsToAppend);
 
+    // Log aktivitas untuk setiap row yang ditambah
+    if (actor) {
+      for (let i = 0; i < newRows.length; i++) {
+        const rowObj = {};
+        headers.forEach((h, idx) => { rowObj[h] = rowsToAppend[i][idx]; });
+        await logActivity(
+          actor,
+          'Tambah Temuan',
+          rowObj,
+          `Judul: ${rowObj['Judul Audit'] || ''}`
+        );
+      }
+    }
+
     console.log(`✓ Added ${rowsToAppend.length} new rows`);
 
     res.json({
@@ -198,7 +317,7 @@ router.post('/add', async (req, res) => {
 router.put('/update/:rowIndex', async (req, res) => {
   try {
     const { rowIndex } = req.params;
-    const { role, data: updatedData } = req.body;
+    const { role, data: updatedData, actor } = req.body;
 
     if (!rowIndex || !updatedData) {
       return res.status(400).json({
@@ -267,6 +386,26 @@ router.put('/update/:rowIndex', async (req, res) => {
     // Update row
     await sheetsService.updateRow('Data', rowIdx, newRowValues);
 
+    // Log aktivitas
+    if (actor) {
+      // Deteksi field yang berubah (untuk PIC: field terbatas)
+      const trackedFields = role === 'Admin'
+        ? ['Status', 'Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence', 'Due Date']
+        : ['Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence'];
+
+      const changed = trackedFields.filter(f => {
+        return updatedData[f] !== undefined &&
+          String(updatedData[f]) !== String(existingObj[f] || '');
+      });
+
+      const keterangan = changed.length > 0
+        ? changed.map(f => `${f}: "${existingObj[f] || ''}" → "${updatedData[f]}"`).join(' | ')
+        : 'Tidak ada perubahan';
+
+      const rowSnapshot = Object.assign({}, existingObj);
+      await logActivity(actor, role === 'Admin' ? 'Edit Admin' : 'Edit PIC', rowSnapshot, keterangan);
+    }
+
     console.log(`✓ Updated row ${rowIdx} (${role})`);
 
     res.json({
@@ -294,7 +433,7 @@ router.put('/update/:rowIndex', async (req, res) => {
 router.put('/status/:rowIndex', async (req, res) => {
   try {
     const { rowIndex } = req.params;
-    const { status } = req.body;
+    const { status, actor } = req.body;
 
     if (!rowIndex) {
       return res.status(400).json({
@@ -305,6 +444,21 @@ router.put('/status/:rowIndex', async (req, res) => {
 
     const now = new Date().toISOString();
     const rowIdx = Number(rowIndex);
+
+    // Ambil snapshot row sebelum diubah (untuk log)
+    let rowSnapshot = {};
+    try {
+      const rawData = await sheetsService.getSheetData('Data');
+      if (rawData && rawData.length > 1) {
+        const headers = rawData[0];
+        const existingRow = rawData[rowIdx - 1]; // rowIdx adalah 1-based termasuk header
+        if (existingRow) {
+          headers.forEach((h, idx) => {
+            rowSnapshot[h] = existingRow[idx] !== undefined ? existingRow[idx] : '';
+          });
+        }
+      }
+    } catch (_) { /* snapshot gagal, tetap lanjut */ }
 
     // Update specific cells
     const updates = {
@@ -318,6 +472,13 @@ router.put('/status/:rowIndex', async (req, res) => {
     }
 
     await sheetsService.updateCells('Data', rowIdx, updates);
+
+    // Log aktivitas
+    if (actor) {
+      const action = status === 'Close' ? 'Approve Close' : 'Reopen';
+      const keterangan = `Status diubah menjadi "${status}"`;
+      await logActivity(actor, action, rowSnapshot, keterangan);
+    }
 
     console.log(`✓ Status updated for row ${rowIdx}: ${status}`);
 
@@ -341,6 +502,7 @@ router.put('/status/:rowIndex', async (req, res) => {
 router.put('/reject-close/:rowIndex', async (req, res) => {
   try {
     const { rowIndex } = req.params;
+    const { actor } = req.body;
 
     if (!rowIndex) {
       return res.status(400).json({
@@ -352,10 +514,30 @@ router.put('/reject-close/:rowIndex', async (req, res) => {
     const now = new Date().toISOString();
     const rowIdx = Number(rowIndex);
 
+    // Ambil snapshot row (untuk log)
+    let rowSnapshot = {};
+    try {
+      const rawData = await sheetsService.getSheetData('Data');
+      if (rawData && rawData.length > 1) {
+        const headers = rawData[0];
+        const existingRow = rawData[rowIdx - 1];
+        if (existingRow) {
+          headers.forEach((h, idx) => {
+            rowSnapshot[h] = existingRow[idx] !== undefined ? existingRow[idx] : '';
+          });
+        }
+      }
+    } catch (_) { /* snapshot gagal, tetap lanjut */ }
+
     await sheetsService.updateCells('Data', rowIdx, {
       'Request Close': 'Belum',
       'Last Updated': now
     });
+
+    // Log aktivitas
+    if (actor) {
+      await logActivity(actor, 'Reject Close', rowSnapshot, 'Request Close ditolak oleh Admin');
+    }
 
     console.log(`✓ Request close rejected for row ${rowIdx}`);
 
@@ -380,6 +562,8 @@ router.delete('/delete/:rowIndex', async (req, res) => {
   try {
     const { rowIndex } = req.params;
     const rowIdx = Number(rowIndex);
+    // actor dikirim via query string karena DELETE body tidak selalu reliable
+    const actor = req.query.actor ? JSON.parse(decodeURIComponent(req.query.actor)) : null;
 
     if (!rowIdx || rowIdx < 2) {
       return res.status(400).json({
@@ -388,7 +572,28 @@ router.delete('/delete/:rowIndex', async (req, res) => {
       });
     }
 
+    // Ambil snapshot SEBELUM dihapus (untuk log)
+    let rowSnapshot = {};
+    try {
+      const rawData = await sheetsService.getSheetData('Data');
+      if (rawData && rawData.length > 1) {
+        const headers = rawData[0];
+        const existingRow = rawData[rowIdx - 1];
+        if (existingRow) {
+          headers.forEach((h, idx) => {
+            rowSnapshot[h] = existingRow[idx] !== undefined ? existingRow[idx] : '';
+          });
+        }
+      }
+    } catch (_) { /* snapshot gagal, tetap lanjut */ }
+
     await sheetsService.deleteRow('Data', rowIdx);
+
+    // Log aktivitas setelah berhasil dihapus
+    if (actor) {
+      const keterangan = `Judul: ${rowSnapshot['Judul Audit'] || '—'} | Divisi: ${rowSnapshot['Divisi'] || '—'}`;
+      await logActivity(actor, 'Hapus Temuan', rowSnapshot, keterangan);
+    }
 
     console.log(`✓ Deleted row ${rowIdx}`);
 
