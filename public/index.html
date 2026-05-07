@@ -3731,8 +3731,17 @@
             ══════════════════════════════════════ */
             function getFV(desktopId) {
                 var mob = document.getElementById('m_' + desktopId), dsk = document.getElementById(desktopId);
-                if (window.innerWidth <= 768) return (mob ? mob.value : '') || (dsk ? dsk.value : '');
-                return (dsk ? dsk.value : '') || (mob ? mob.value : '');
+                // Penting: jika elemen ada, nilai kosong ("") harus dihormati.
+                // Jangan fallback ke elemen lain karena bisa mempertahankan filter lama
+                // saat user memilih "Semua ..." (value kosong).
+                if (window.innerWidth <= 768) {
+                    if (mob) return mob.value || '';
+                    if (dsk) return dsk.value || '';
+                    return '';
+                }
+                if (dsk) return dsk.value || '';
+                if (mob) return mob.value || '';
+                return '';
             }
 
             function renderTable(q, stF, rcF, divF, deptF) {
@@ -3744,7 +3753,7 @@
 
                 var isAdmin = S.user.role === 'Admin', ql = q.toLowerCase();
                 S.filtered = S.allRows.filter(function (r) {
-                    var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
+                    var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
                     return m && (!stF || String(r['Status'] || '') === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF);
                 });
                 if (S.sortBy && S.sortDir) {
