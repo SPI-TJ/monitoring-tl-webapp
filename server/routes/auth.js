@@ -29,7 +29,7 @@ const sheetsService = require('../services/sheetsService');
  *   "user": {
  *     "username": "admin",
  *     "role": "Admin",
- *     "divisi": "IT",
+ *     "divisi": "SPI",
  *     "nama": "Administrator"
  *   }
  * }

@@ -2,145 +2,110 @@
  * ============================================================================
  * API CLIENT - WRAPPER UNTUK BACKEND API
  * ============================================================================
- * 
+ *
  * File ini menggantikan google.script.run dengan fetch API calls
- * ke backend Express server
- * 
+ * ke backend Express server.
+ *
+ * Catatan v1.1.0:
+ *  - Semua write-endpoint kini mem-forward parameter `actor` (user yang sedang
+ *    login) ke server. Tanpa ini, server tidak mencatat aktivitas di
+ *    sheet "Activity Log" karena field tersebut datang sebagai undefined.
+ *
  * @author Miftahur Rizki
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 const API_BASE = window.location.origin + '/api';
 
-/**
- * API Client - meniru interface google.script.run
- */
+function _json(res) { return res.json(); }
+
 const API = {
-  /**
-   * Login user
-   */
-  login: function(username, password) {
+  login: function (username, password) {
     return fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
-    }).then(r => r.json());
+    }).then(_json);
   },
 
-  /**
-   * Get all data dengan filter role/divisi
-   */
-  getAll: function(role, userDivisi) {
+  getAll: function (role, userDivisi) {
     const params = new URLSearchParams();
     if (role) params.append('role', role);
     if (userDivisi) params.append('divisi', userDivisi);
-    
-    return fetch(`${API_BASE}/data?${params.toString()}`)
-      .then(r => r.json());
+    return fetch(`${API_BASE}/data?${params.toString()}`).then(_json);
   },
 
-  /**
-   * Add rows (Admin only)
-   */
-  addRows: function(rows) {
+  addRows: function (rows, actor) {
     return fetch(`${API_BASE}/data/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows })
-    }).then(r => r.json());
+      body: JSON.stringify({ rows, actor })
+    }).then(_json);
   },
 
-  /**
-   * Update row (Admin full, PIC partial)
-   */
-  updateRowAdmin: function(rowIndex, data) {
+  updateRowAdmin: function (rowIndex, data, actor) {
     return fetch(`${API_BASE}/data/update/${rowIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'Admin', data })
-    }).then(r => r.json());
+      body: JSON.stringify({ role: 'Admin', data, actor })
+    }).then(_json);
   },
 
-  /**
-   * Update row (PIC)
-   */
-  updateRowPIC: function(rowIndex, data) {
+  updateRowPIC: function (rowIndex, data, actor) {
     return fetch(`${API_BASE}/data/update/${rowIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'PIC', data })
-    }).then(r => r.json());
+      body: JSON.stringify({ role: 'PIC', data, actor })
+    }).then(_json);
   },
 
-  /**
-   * Update status (approve close)
-   */
-  updateStatus: function(rowIndex, status) {
+  updateStatus: function (rowIndex, status, actor) {
     return fetch(`${API_BASE}/data/status/${rowIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    }).then(r => r.json());
+      body: JSON.stringify({ status, actor })
+    }).then(_json);
   },
 
-  /**
-   * Reject close request
-   */
-  rejectCloseRequest: function(rowIndex) {
+  rejectCloseRequest: function (rowIndex, actor) {
     return fetch(`${API_BASE}/data/reject-close/${rowIndex}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }
-    }).then(r => r.json());
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actor })
+    }).then(_json);
   },
 
-  /**
-   * Delete row
-   */
-  deleteRow: function(rowIndex) {
-    return fetch(`${API_BASE}/data/delete/${rowIndex}`, {
-      method: 'DELETE'
-    }).then(r => r.json());
+  deleteRow: function (rowIndex, actor) {
+    let url = `${API_BASE}/data/delete/${rowIndex}`;
+    if (actor) url += '?actor=' + encodeURIComponent(JSON.stringify(actor));
+    return fetch(url, { method: 'DELETE' }).then(_json);
   },
 
-  /**
-   * Get all users
-   */
-  getUsers: function() {
-    return fetch(`${API_BASE}/users`)
-      .then(r => r.json());
+  getUsers: function () {
+    return fetch(`${API_BASE}/users`).then(_json);
   },
 
-  /**
-   * Add user
-   */
-  addUser: function(username, password, role, divisi, nama) {
+  addUser: function (username, password, role, divisi, nama) {
     return fetch(`${API_BASE}/users/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, role, divisi, nama })
-    }).then(r => r.json());
+    }).then(_json);
   },
 
-  /**
-   * Update user
-   */
-  updateUser: function(username, password, role, divisi, nama) {
+  updateUser: function (username, password, role, divisi, nama) {
     return fetch(`${API_BASE}/users/update/${username}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password, role, divisi, nama })
-    }).then(r => r.json());
+    }).then(_json);
   },
 
-  /**
-   * Delete user
-   */
-  deleteUser: function(username) {
+  deleteUser: function (username) {
     return fetch(`${API_BASE}/users/delete/${username}`, {
       method: 'DELETE'
-    }).then(r => r.json());
+    }).then(_json);
   }
 };
 
-// Export untuk digunakan di HTML
 window.API = API;

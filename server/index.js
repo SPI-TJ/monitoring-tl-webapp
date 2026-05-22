@@ -1,157 +1,136 @@
 /**
  * ============================================================================
- * AUDIT MONITORING WEB APPLICATION - SERVER ENTRY POINT
+ * AUDIT MONITORING WEB APPLICATION — SERVER v2.0.0
  * ============================================================================
  *
- * Express server untuk lokal & Vercel (serverless).
- * Di Vercel, server TIDAK boleh memanggil app.listen().
+ * Perubahan:
+ *  - /api/health kini menampilkan queue depth & token bucket stats
+ *  - Error handler menambahkan Retry-After header pada 503
+ *  - Variabel .env baru didokumentasikan di startup log
  */
+
+'use strict';
 
 require('dotenv').config();
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const express     = require('express');
+const cors        = require('cors');
+const helmet      = require('helmet');
 const compression = require('compression');
-const morgan = require('morgan');
-const path = require('path');
+const morgan      = require('morgan');
+const path        = require('path');
 
-const authRoutes = require('./routes/auth');
-const dataRoutes = require('./routes/data');
+const authRoutes  = require('./routes/auth');
+const dataRoutes  = require('./routes/data');
 const usersRoutes = require('./routes/users');
+const sheetsService = require('./services/sheetsService');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const app      = express();
+const PORT     = process.env.PORT     || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// =============================================================================
-// CORS (kompatibel untuk Vercel preview + production)
-// =============================================================================
-
-function cleanOrigin(origin) {
-  return typeof origin === 'string' ? origin.trim().replace(/\/$/, '') : origin;
-}
+/* ── CORS ──────────────────────────────────────────── */
+function cleanOrigin(o) { return typeof o === 'string' ? o.trim().replace(/\/$/, '') : o; }
 
 const originAllowlist = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
   /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,
 ];
-
 if (process.env.ALLOWED_ORIGINS) {
-  process.env.ALLOWED_ORIGINS.split(',').forEach((o) => {
-    const trimmed = cleanOrigin(o);
-    if (trimmed) originAllowlist.push(trimmed);
+  process.env.ALLOWED_ORIGINS.split(',').forEach(o => {
+    const t = cleanOrigin(o); if (t) originAllowlist.push(t);
   });
 }
-
 function isOriginAllowed(origin) {
-  // Tanpa Origin header: same-origin (umum di Vercel) atau server-to-server → izinkan
   if (!origin) return true;
-  const clean = cleanOrigin(origin);
-  return originAllowlist.some((allowed) => {
-    if (allowed instanceof RegExp) return allowed.test(clean);
-    return allowed === clean;
-  });
+  const c = cleanOrigin(origin);
+  return originAllowlist.some(a => a instanceof RegExp ? a.test(c) : a === c);
 }
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) return callback(null, true);
-    return callback(new Error(`CORS blocked origin: ${origin}`));
-  },
+  origin     : (origin, cb) => isOriginAllowed(origin) ? cb(null, true) : cb(new Error(`CORS blocked: ${origin}`)),
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods    : ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
 app.options('*', cors());
 
-// =============================================================================
-// SECURITY HEADERS
-// =============================================================================
-// SPA ini banyak inline script/handler, jadi CSP ketat berpotensi memblokir UI.
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
-
-// =============================================================================
-// MIDDLEWARE
-// =============================================================================
-
+/* ── Security / middleware ─────────────────────────── */
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(compression());
 app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Static frontend
 app.use(express.static(path.join(__dirname, '../public')));
 
-// =============================================================================
-// API ROUTES
-// =============================================================================
+/* ── Routes ────────────────────────────────────────── */
 
+/**
+ * GET /api/health
+ * Tampilkan queue depth, token bucket, dan cache info.
+ */
 app.get('/api/health', (req, res) => {
   res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
+    status     : 'ok',
+    timestamp  : new Date().toISOString(),
     environment: NODE_ENV,
-    uptime: process.uptime(),
-    version: '1.0.0',
+    uptime     : process.uptime(),
+    version    : '2.0.0',
+    sheets     : sheetsService.stats(),
   });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/data', dataRoutes);
+/**
+ * GET /api/cache/invalidate  (opsional, untuk force-refresh manual)
+ * Query: ?sheet=Data  atau tanpa param = semua sheet
+ */
+app.get('/api/cache/invalidate', (req, res) => {
+  const sheet = req.query.sheet || null;
+  sheetsService.invalidateCache(sheet);
+  res.json({ success: true, invalidated: sheet || 'all' });
+});
+
+app.use('/api/auth',  authRoutes);
+app.use('/api/data',  dataRoutes);
 app.use('/api/users', usersRoutes);
 
-// API 404 harus sebelum fallback SPA
 app.use('/api', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'API endpoint not found',
-    path: req.originalUrl,
-  });
+  res.status(404).json({ success: false, message: 'API endpoint not found', path: req.originalUrl });
 });
 
-// =============================================================================
-// SPA FALLBACK
-// =============================================================================
-
+/* ── SPA fallback ──────────────────────────────────── */
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// =============================================================================
-// ERROR HANDLING
-// =============================================================================
-
+/* ── Error handler ─────────────────────────────────── */
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || err.status || 500;
+  const status  = err.statusCode || err.status || 500;
   const message = NODE_ENV === 'development' ? err.message : 'Internal server error';
   if (NODE_ENV === 'development') console.error('Server error:', err);
-  res.status(statusCode).json({
+
+  // Berikan petunjuk client untuk retry setelah 5 detik jika 503
+  if (status === 503) res.set('Retry-After', '5');
+
+  res.status(status).json({
     success: false,
     message,
     ...(NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 
-// =============================================================================
-// START SERVER (lokal saja)
-// =============================================================================
-
+/* ── Start (lokal) ─────────────────────────────────── */
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT} [${NODE_ENV}]`);
-    console.log(`📊 SPREADSHEET_ID: ${process.env.SPREADSHEET_ID ? '✓' : '✗ missing'}`);
-    console.log(`🔐 GOOGLE creds: ${
-      process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_JSON
-        ? '✓'
-        : '✗ missing'
-    }`);
+    console.log(`📊 SPREADSHEET_ID    : ${process.env.SPREADSHEET_ID ? '✓' : '✗ missing'}`);
+    console.log(`🔐 GOOGLE creds      : ${process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_JSON ? '✓' : '✗ missing'}`);
+    console.log(`⚡ Write RPM limit   : ${process.env.SHEETS_WRITE_RPM  || 55}`);
+    console.log(`📦 Read cache TTL    : ${process.env.SHEETS_READ_TTL   || 15000} ms`);
+    console.log(`📋 Header cache TTL  : ${process.env.SHEETS_HDR_TTL    || 300000} ms`);
+    console.log(`🔁 Max write retries : ${process.env.SHEETS_MAX_RETRY  || 4}`);
+    console.log(`📬 Max queue depth   : ${process.env.SHEETS_MAX_QUEUE  || 200}`);
   });
 }
 
