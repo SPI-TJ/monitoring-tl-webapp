@@ -3733,7 +3733,10 @@
                DASHBOARD
             ══════════════════════════════════════ */
             function renderDashboard() {
+<<<<<<< HEAD
                 var isAdmin = S.user.role === 'Admin';
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 var years = {};
                 S.allRows.forEach(function (r) { var d = r['Due Date']; if (d) { var y = new Date(d).getFullYear(); if (!isNaN(y)) years[y] = 1; } });
                 var yearOpts = Object.keys(years).sort().map(y => '<option value="' + y + '"' + (S.dashYear == y ? ' selected' : '') + '>' + y + '</option>').join('');
@@ -3745,7 +3748,10 @@
                     '<button class="mf-pill' + (S.dashMonth === null ? ' active' : '') + '" onclick="setDashMonth(null)">Semua</button>' +
                     pillHtml + '</div>' +
                     (yearOpts ? '<select class="mf-year-sel" onchange="setDashYear(this.value)"><option value="">Semua Tahun</option>' + yearOpts + '</select>' : '') +
+<<<<<<< HEAD
                     (isAdmin ? '<button class="btn btn-primary btn-sm" id="btnExportRekap" onclick="exportAdminRekap()" style="margin-left:auto" title="Download rekap distribusi per Departemen sesuai filter aktif">⬇ Download Rekap Distribusi</button>' : '') +
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     '</div>';
 
                 var fRows = filterDashRows();
@@ -3763,7 +3769,11 @@
                 var bigProg = '<div class="big-prog">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center">' +
                     '<div><div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.3px">Tingkat Penyelesaian Keseluruhan</div>' +
+<<<<<<< HEAD
                     '<div style="font-size:12px;color:var(--text3);margin-top:2px;font-weight:500">' + s.closed + ' dari ' + s.total + ' rekomendasi telah ditutup' + (S.dashMonth ? ' — s.d. ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '') : (S.dashYear ? ' — Tahun ' + S.dashYear : '')) +
+=======
+                    '<div style="font-size:12px;color:var(--text3);margin-top:2px;font-weight:500">' + s.closed + ' dari ' + s.total + ' rekomendasi telah ditutup' + (S.dashMonth ? ' — Bulan ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '') : '') +
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     '</div></div><div class="big-prog-pct">' + pct + '<span style="font-size:16px;font-weight:600;opacity:.6">%</span></div></div>' +
                     '<div class="big-prog-bar"><div class="big-prog-fill" style="width:' + pct + '%"></div></div>' +
                     '<div style="display:flex;gap:20px">' +
@@ -3775,6 +3785,7 @@
                 var chartCols = isAdmin
                     ? '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Rekomendasi', 'Proporsi Open vs Close', '') + ccard('chartDir', '🏢', 'Per Direktorat', 'Jumlah rekomendasi', '') + ccard('chartProg', '📈', 'Progres per Direktorat', 'Rata-rata % penyelesaian', '') + '</div>'
                     : '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Divisi', 'Proporsi Open vs Close', '') + ccard('chartDept', '🏬', 'Per Departemen', 'Jumlah rekomendasi', '') + ccard('chartDeptProg', '📈', 'Progres per Departemen', 'Rata-rata % penyelesaian', '') + '</div>';
+<<<<<<< HEAD
 
                 // Tren % Close per Bulan — hanya untuk Admin, full-width
                 var trendCardHtml = '';
@@ -3871,6 +3882,14 @@
                 return { label: 'Tren Stagnan (' + (diff > 0 ? '+' : '') + diff + ' pp)', cls: 'tr-flat', icon: '−' };
             }
 
+=======
+
+                var distSection = buildDistCards(isAdmin, s);
+                showMain(monthFilterHtml + statsHtml + bigProg + chartCols + distSection);
+                setTimeout(function () { renderCharts(isAdmin, fRows, s); }, 60);
+            }
+
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
             function filterDashRows() {
                 if (!S.dashMonth && !S.dashYear) return S.allRows;
                 // Filter kumulatif: tampilkan rekomendasi dengan Due Date s.d. (≤) bulan terpilih.
@@ -3911,9 +3930,13 @@
             function setDashYear(y) { S.dashYear = y || null; renderDashboard(); }
 
             function buildDistCards(isAdmin, s) {
+<<<<<<< HEAD
                 var lbl = S.dashMonth
                     ? ' — s.d. ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '')
                     : (S.dashYear ? ' — Tahun ' + S.dashYear : '');
+=======
+                var lbl = S.dashMonth ? ' — Bulan ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '') : '';
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 function distRows(detail) {
                     return Object.entries(detail).sort((a, b) => b[1].total - a[1].total).map(function (e) {
                         var k = e[0], v = e[1], pct = v.total > 0 ? +(v.closed / v.total * 100).toFixed(0) : 0;
@@ -3953,6 +3976,7 @@
                     if (dirEl && s.byDir) { var dk = Object.keys(s.byDir).sort((a, b) => s.byDir[b] - s.byDir[a]).slice(0, 10); var dv = dk.map(k => s.byDir[k]); S.charts.dir = new Chart(dirEl, { type: 'bar', data: { labels: dk, datasets: [{ label: 'Rekomendasi', data: dv, backgroundColor: dv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
                     var prEl = document.getElementById('chartProg');
                     if (prEl) { var pm = {}, cm = {}; rows.forEach(r => { var d = r['Kode Direktorat'] || 'N/A'; pm[d] = (pm[d] || 0) + (Number(r['Progres%']) || 0); cm[d] = (cm[d] || 0) + 1; }); var pk = Object.keys(pm).sort((a, b) => (pm[b] / cm[b]) - (pm[a] / cm[a])).slice(0, 8); var pv = pk.map(k => +(pm[k] / cm[k]).toFixed(0)); S.charts.prog = new Chart(prEl, { type: 'bar', data: { labels: pk, datasets: [{ label: 'Avg Progres%', data: pv, backgroundColor: pv.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
+<<<<<<< HEAD
 
                     // ─── Line Chart: Tren % Close per Bulan (cumulative) ───
                     var trEl = document.getElementById('chartTrend');
@@ -4024,6 +4048,8 @@
                             });
                         }
                     }
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 } else {
                     var dptEl = document.getElementById('chartDept');
                     if (dptEl && s.byDept) { var dpk = Object.keys(s.byDept).sort((a, b) => s.byDept[b] - s.byDept[a]); var dpv = dpk.map(k => s.byDept[k]); S.charts.dept = new Chart(dptEl, { type: 'bar', data: { labels: dpk, datasets: [{ label: 'Rekomendasi', data: dpv, backgroundColor: dpv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
@@ -4058,9 +4084,12 @@
                 deptF = deptF !== undefined ? deptF : getFV('fltDept');
 
                 var isAdmin = S.user.role === 'Admin', ql = q.toLowerCase();
+<<<<<<< HEAD
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel.
                 // Status filter dropdown juga di-kunci ke 'Open' untuk PIC (lihat di bawah).
                 if (!isAdmin) stF = 'Open';
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 S.filtered = S.allRows.filter(function (r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
                     return m && (!stF || String(r['Status'] || '') === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF);
@@ -4101,12 +4130,16 @@
                 }
                 var smNo = sortMeta('No'), smDue = sortMeta('Due Date'), smProg = sortMeta('Progres%');
 
+<<<<<<< HEAD
                 var emptyMsg = isAdmin
                     ? '<p>Tidak ada data ditemukan</p><small>Coba ubah filter pencarian</small>'
                     : (S.allRows.length === 0
                         ? '<p>Belum ada rekomendasi untuk divisi Anda</p><small>Data baru akan muncul di sini ketika Admin menambahkannya</small>'
                         : '<p>Tidak ada rekomendasi aktif</p><small>Semua rekomendasi sudah Close atau tidak cocok dengan filter</small>');
                 var rows = slice.length === 0 ? '<tr><td colspan="13"><div class="empty"><div class="empty-icon">🔍</div>' + emptyMsg + '</div></td></tr>' : slice.map(function (r) {
+=======
+                var rows = slice.length === 0 ? '<tr><td colspan="13"><div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada data ditemukan</p><small>Coba ubah filter pencarian</small></div></td></tr>' : slice.map(function (r) {
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     var st = String(r['Status'] || '').trim(), rc = String(r['Request Close'] || 'Belum').trim(), prog = +(r['Progres%']) || 0;
                     var due = r['Due Date'] ? new Date(r['Due Date']) : null, over = due && !isNaN(due) && st !== 'Close' && due < new Date(), ri = r._rowIndex;
                     return '<tr class="row-click' + (over ? ' row-overdue' : '') + '" onclick="openDetail(' + ri + ')">' +
@@ -4125,7 +4158,11 @@
                         '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (isAdmin ? '<button class="btn btn-subtle btn-xs" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-xs" onclick="event.stopPropagation();approveClose(' + ri + ')">✓</button>' : '') + '<button class="btn btn-red btn-xs" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : '<button class="btn btn-amber btn-xs" onclick="event.stopPropagation();openPICEdit(' + ri + ')">Update</button>') + '</div></td></tr>';
                 }).join('');
 
+<<<<<<< HEAD
                 var mobileCards = slice.length === 0 ? '<div class="empty"><div class="empty-icon">🔍</div>' + emptyMsg + '</div>' : slice.map(function (r) {
+=======
+                var mobileCards = slice.length === 0 ? '<div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada data ditemukan</p><small>Coba ubah filter</small></div>' : slice.map(function (r) {
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     var st = String(r['Status'] || '').trim(), rc = String(r['Request Close'] || 'Belum').trim(), prog = +(r['Progres%']) || 0;
                     var due = r['Due Date'] ? new Date(r['Due Date']) : null, over = due && !isNaN(due) && st !== 'Close' && due < new Date(), ri = r._rowIndex;
                     return '<div class="dc' + (over ? ' dc-overdue' : '') + '" onclick="openDetail(' + ri + ')">' +
@@ -4134,24 +4171,36 @@
                         '<div class="dc-foot"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍 Detail</button>' + (isAdmin ? '<button class="btn btn-subtle btn-sm" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️ Edit</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="event.stopPropagation();approveClose(' + ri + ')">✓ Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : '<button class="btn btn-amber btn-sm" onclick="event.stopPropagation();openPICEdit(' + ri + ')">✏️ Update</button>') + '</div></div>';
                 }).join('');
 
+<<<<<<< HEAD
                 // Untuk PIC, stF di-force ke 'Open' (lihat di atas) — jangan dihitung sebagai filter aktif.
                 var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF].filter(Boolean).length;
+=======
+                var filterCount = [q, stF, rcF, divF, deptF].filter(Boolean).length;
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
+<<<<<<< HEAD
                     '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
+=======
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + ' rekomendasi' + (q || stF || rcF || divF || deptF ? ' (hasil filter)' : '') + '</div></div>' +
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     '<div class="toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+<<<<<<< HEAD
                     (isAdmin
                         ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button><button class="btn btn-ghost btn-sm" onclick="openUpload()">⬆ Upload CSV</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
                     ) +
+=======
+                    (isAdmin ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button><button class="btn btn-ghost btn-sm" onclick="openUpload()">⬆ CSV</button>' : '') +
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     '</div></div>' +
                     '<div class="filter-toggle-bar"><button class="filter-toggle-btn' + ftbCls + '" onclick="toggleFilterPanel()">🔽 Filter' + ftbBadge + '</button><button class="btn btn-ghost btn-sm" onclick="mobileSearch()" style="flex-shrink:0">🔍</button></div>' +
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
@@ -4160,7 +4209,10 @@
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+<<<<<<< HEAD
                     (isAdmin ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                     (filterCount > 0 ? '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Reset Filter</button>' : '') +
                     '</div>' +
                     '<div class="table-scroll"><table><thead><tr>' +
@@ -4225,13 +4277,17 @@
             function openPICEdit(ri) {
                 var row = findRow(ri); if (!row) { toast('Data tidak ditemukan.', 'toast-error'); return; }
                 S.editIdx = ri; $('picSub').textContent = (row['Divisi'] || '') + ' — ' + (row['Departemen'] || '');
+<<<<<<< HEAD
                 $('picJudul').textContent = row['Judul Audit'] || '—';
                 $('picTemuan').textContent = row['Temuan Pemeriksaan'] || '—';
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 $('picRek').textContent = row['Rekomendasi'] || '—'; $('picProg').value = row['Progres%'] || 0;
                 $('picRC').value = row['Request Close'] || 'Belum'; $('picTL').value = row['Tindak Lanjut'] || '';
                 $('picTG').value = row['Tanggapan Auditee'] || ''; $('picEv').value = row['Link Evidence'] || '';
                 $('evErr').classList.remove('show'); onRCChange(); openModal('mPIC');
             }
+<<<<<<< HEAD
             function onRCChange() {
                 var rc = $('picRC').value;
                 // Link Evidence selalu tampil — user boleh attach kapan saja sebagai bukti progres.
@@ -4240,6 +4296,9 @@
                 if (rc !== 'Ya') $('evErr').classList.remove('show');
                 validateEv();
             }
+=======
+            function onRCChange() { var rc = $('picRC').value; if (rc !== 'Ya') $('evErr').classList.remove('show'); validateEv(); }
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
             function validateEv() { var v = $('picEv').value.trim(), rc = $('picRC').value; $('evErr').classList.toggle('show', rc === 'Ya' && !v); }
             function savePIC() {
                 var prog = parseInt($('picProg').value) || 0, rc = $('picRC').value, ev = $('picEv').value.trim();
@@ -4332,6 +4391,7 @@
                 ];
                 $('detBody').innerHTML = fields.map(f => '<div class="detail-row"><div class="det-lbl">' + f[0] + '</div><div class="det-val">' + f[1] + '</div></div>').join('');
                 var foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button>';
+<<<<<<< HEAD
                 if (!isAdmin) {
                     foot += '<button class="btn btn-amber" onclick="closeModal(\'mDetail\');openPICEdit(' + ri + ')">✏️ Update Progress</button>';
                 } else {
@@ -4346,6 +4406,10 @@
                               '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');rejectClose(' + ri + ')">✕ Tolak Close</button>'
                             : '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');delConfirm(' + ri + ')">🗑 Hapus</button>');
                 }
+=======
+                if (!isAdmin) foot += '<button class="btn btn-amber" onclick="closeModal(\'mDetail\');openPICEdit(' + ri + ')">✏️ Update Progress</button>';
+                else foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button><button class="btn btn-subtle btn-sm" onclick="closeModal(\'mDetail\');openAdminEdit(' + ri + ')">✏️ Edit</button>' + (row['Request Close'] === 'Ya' && row['Status'] !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="closeModal(\'mDetail\');approveClose(' + ri + ')">✓ Approve Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');delConfirm(' + ri + ')">🗑 Hapus</button>';
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
                 $('detFoot').innerHTML = foot; openModal('mDetail');
             }
 
@@ -4437,6 +4501,7 @@
                 var fail = e => { btn.innerHTML = '💾 Simpan'; btn.disabled = false; toast('Error: ' + e.message, 'toast-error'); };
                 if (S.editUser) API.updateUser(S.editUser, p, r, d, n).then(ok).catch(fail);
                 else { if (!u) { toast('Username wajib.', 'toast-error'); btn.innerHTML = '💾 Simpan'; btn.disabled = false; return; } API.addUser(u, p, r, d, n).then(ok).catch(fail); }
+<<<<<<< HEAD
             }
             function delUser(username) { if (!confirm('Hapus user "' + username + '"?')) return; API.deleteUser(username).then(function (r) { if (r && r.success) { toast('User dihapus!', 'toast-success'); loadUsers(); } else toast((r && r.message) || 'Gagal.', 'toast-error'); }).catch(e => toast('Error: ' + e.message, 'toast-error')); }
 
@@ -4457,8 +4522,12 @@
                     document.head.appendChild(s);
                 });
                 return _exceljsPromise;
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
             }
+            function delUser(username) { if (!confirm('Hapus user "' + username + '"?')) return; API.deleteUser(username).then(function (r) { if (r && r.success) { toast('User dihapus!', 'toast-success'); loadUsers(); } else toast((r && r.message) || 'Gagal.', 'toast-error'); }).catch(e => toast('Error: ' + e.message, 'toast-error')); }
 
+<<<<<<< HEAD
             function fmtDDMMYYYY(v) {
                 if (!v) return '';
                 var d = new Date(v);
@@ -4726,6 +4795,8 @@
                 }).then(restore);
             }
 
+=======
+>>>>>>> e14e2eca351b68a476c36755eef672c2c98f12a1
             /* ══════════════════════════════════════
                HELPERS
             ══════════════════════════════════════ */
