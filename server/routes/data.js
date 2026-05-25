@@ -18,6 +18,11 @@
 const express      = require('express');
 const router       = express.Router();
 const sheetsService = require('../services/sheetsService');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { sanitizeDataRow, validateHttpUrl, sanitizeFormulaValue, URL_FIELDS_DATA } = require('../utils/validation');
+
+// Semua endpoint di sini wajib terautentikasi.
+router.use(requireAuth);
 
 const ACTIVITY_LOG_SHEET   = 'Activity Log';
 const ACTIVITY_LOG_HEADERS = [
@@ -135,7 +140,8 @@ function buildStats(rows) {
  */
 router.get('/', async (req, res) => {
   try {
-    const { role, divisi } = req.query;
+    const role   = req.user.role;
+    const divisi = req.user.divisi;
     const rawRows = await sheetsService.getSheetData('Data');
 
     if (!rawRows || rawRows.length < 2) {
@@ -151,11 +157,11 @@ router.get('/', async (req, res) => {
     }
     rows = rows.reverse();
 
-    console.log(`✓ Data fetched: ${rows.length} rows (role: ${role || 'all'})`);
+    console.log(`✓ Data fetched: ${rows.length} rows for ${req.user.username} (${role})`);
     res.json({ rows, stats: buildStats(rows) });
   } catch (err) {
     console.error('Error fetching data:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Gagal mengambil data.' });
   }
 });
 
@@ -193,14 +199,25 @@ router.get('/activity-log', async (req, res) => {
 });
 
 /**
- * POST /api/data/add
+ * POST /api/data/add — Admin only
  */
-router.post('/add', async (req, res) => {
+router.post('/add', requireAdmin, async (req, res) => {
   try {
-    const { rows: newRows, actor } = req.body;
+    const { rows: newRows } = req.body;
+    const actor = req.user;
 
     if (!newRows || !Array.isArray(newRows) || newRows.length === 0) {
       return res.status(400).json({ success: false, message: 'Tidak ada data untuk ditambahkan.' });
+    }
+
+    // Sanitasi tiap row + validate URL fields
+    const sanitizedRows = [];
+    for (const row of newRows) {
+      const r = sanitizeDataRow(row);
+      if (!r.ok) {
+        return res.status(400).json({ success: false, message: r.errors.join('; ') });
+      }
+      sanitizedRows.push(r.data);
     }
 
     const rawData = await sheetsService.getSheetData('Data');
@@ -212,10 +229,10 @@ router.post('/add', async (req, res) => {
     const dataRows = rawData.slice(1);
     let lastNo     = dataRows.length > 0 ? (Number(dataRows[dataRows.length - 1][0]) || 0) : 0;
 
-    const rowsToAppend = newRows.map((row, index) =>
+    const rowsToAppend = sanitizedRows.map((row, index) =>
       headers.map(header => {
         if (header === 'No')            return lastNo + index + 1;
-        if (header === 'Status')        return row[header] || 'Open';
+        if (header === 'Status')        return sanitizeFormulaValue(row[header] || 'Open');
         if (header === 'Request Close') return 'Belum';
         if (header === 'Progres%')      return 0;
         if (DATA_DATE_FIELDS.has(header)) return normalizeToMMDDYYYY(row[header]);
@@ -225,21 +242,19 @@ router.post('/add', async (req, res) => {
 
     await sheetsService.appendRows('Data', rowsToAppend);
 
-    // Log — fire-and-forget
-    if (actor) {
-      rowsToAppend.forEach((appRow, i) => {
-        const rowObj = {};
-        headers.forEach((h, idx) => { rowObj[h] = appRow[idx]; });
-        logActivity(actor, 'Tambah Temuan', rowObj, `Judul: ${rowObj['Judul Audit'] || ''}`);
-      });
-    }
+    // Log — fire-and-forget. Actor diambil dari token (req.user), bukan body.
+    rowsToAppend.forEach((appRow) => {
+      const rowObj = {};
+      headers.forEach((h, idx) => { rowObj[h] = appRow[idx]; });
+      logActivity(actor, 'Tambah Temuan', rowObj, `Judul: ${rowObj['Judul Audit'] || ''}`);
+    });
 
-    console.log(`✓ Added ${rowsToAppend.length} new rows`);
+    console.log(`✓ Added ${rowsToAppend.length} new rows by ${actor.username}`);
     res.json({ success: true, added: rowsToAppend.length });
   } catch (err) {
     console.error('Error adding data:', err);
     const isQueue = err.message?.includes('queue penuh');
-    res.status(isQueue ? 503 : 500).json({ success: false, message: 'Gagal menambah data: ' + err.message });
+    res.status(isQueue ? 503 : 500).json({ success: false, message: isQueue ? err.message : 'Gagal menambah data.' });
   }
 });
 
@@ -248,11 +263,23 @@ router.post('/add', async (req, res) => {
  */
 router.put('/update/:rowIndex', async (req, res) => {
   try {
-    const { rowIndex }                         = req.params;
-    const { role, data: updatedData, actor }   = req.body;
+    const { rowIndex }      = req.params;
+    const { data: updatedData } = req.body;
+    const role  = req.user.role;            // dari token
+    const actor = req.user;
+    const userDivisi = req.user.divisi || '';
 
     if (!rowIndex || !updatedData) {
       return res.status(400).json({ success: false, message: 'Parameter tidak lengkap.' });
+    }
+
+    // Validasi URL untuk field yang URL
+    for (const f of URL_FIELDS_DATA) {
+      if (updatedData[f] !== undefined) {
+        const r = validateHttpUrl(updatedData[f]);
+        if (!r.ok) return res.status(400).json({ success: false, message: `${f}: ${r.message}` });
+        updatedData[f] = r.value;
+      }
     }
 
     const rawData = await sheetsService.getSheetData('Data');
@@ -272,6 +299,14 @@ router.put('/update/:rowIndex', async (req, res) => {
     const existingObj = {};
     headers.forEach((h, i) => { existingObj[h] = existingRow[i] !== undefined && existingRow[i] !== null ? existingRow[i] : ''; });
 
+    // PIC hanya boleh edit baris di divisinya sendiri
+    if (role === 'PIC') {
+      const rowDivisi = String(existingObj['Divisi'] || '').trim();
+      if (rowDivisi && rowDivisi !== String(userDivisi).trim()) {
+        return res.status(403).json({ success: false, message: 'Anda tidak punya akses ke baris ini.' });
+      }
+    }
+
     const now = new Date().toISOString();
 
     const newRowValues = headers.map(header => {
@@ -283,49 +318,53 @@ router.put('/update/:rowIndex', async (req, res) => {
       if (role === 'Admin') {
         if (updatedData[header] === undefined) return existingObj[header];
         if (DATA_DATE_FIELDS.has(header)) return normalizeToMMDDYYYY(updatedData[header]);
-        return updatedData[header];
+        return sanitizeFormulaValue(updatedData[header]);
       }
       const picFields = ['Tindak Lanjut', 'Progres%', 'Request Close', 'Link Evidence', 'Tanggapan Auditee'];
-      if (picFields.includes(header) && updatedData[header] !== undefined) return updatedData[header];
+      if (picFields.includes(header) && updatedData[header] !== undefined) {
+        return sanitizeFormulaValue(updatedData[header]);
+      }
       return existingObj[header];
     });
 
     await sheetsService.updateRow('Data', rowIdx, newRowValues);
 
-    // Log — fire-and-forget
-    if (actor) {
-      const tracked = role === 'Admin'
-        ? ['Status', 'Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence', 'Due Date']
-        : ['Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence'];
+    // Log — fire-and-forget. Actor selalu dari token.
+    const tracked = role === 'Admin'
+      ? ['Status', 'Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence', 'Due Date']
+      : ['Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence'];
 
-      const changed = tracked.filter(f =>
-        updatedData[f] !== undefined && String(updatedData[f]) !== String(existingObj[f] || '')
-      );
-      const keterangan = changed.length > 0
-        ? changed.map(f => `${f}: "${existingObj[f] || ''}" → "${updatedData[f]}"`).join(' | ')
-        : 'Tidak ada perubahan';
+    const changed = tracked.filter(f =>
+      updatedData[f] !== undefined && String(updatedData[f]) !== String(existingObj[f] || '')
+    );
+    const keterangan = changed.length > 0
+      ? changed.map(f => `${f}: "${existingObj[f] || ''}" → "${updatedData[f]}"`).join(' | ')
+      : 'Tidak ada perubahan';
 
-      logActivity(actor, role === 'Admin' ? 'Edit Admin' : 'Edit PIC', { ...existingObj }, keterangan);
-    }
+    logActivity(actor, role === 'Admin' ? 'Edit Admin' : 'Edit PIC', { ...existingObj }, keterangan);
 
-    console.log(`✓ Updated row ${rowIdx} (${role})`);
+    console.log(`✓ Updated row ${rowIdx} (${role}) by ${actor.username}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating data:', err);
     const isQueue = err.message?.includes('queue penuh');
-    res.status(isQueue ? 503 : 500).json({ success: false, message: 'Gagal update data: ' + err.message });
+    res.status(isQueue ? 503 : 500).json({ success: false, message: isQueue ? err.message : 'Gagal update data.' });
   }
 });
 
 /**
  * PUT /api/data/status/:rowIndex
  */
-router.put('/status/:rowIndex', async (req, res) => {
+router.put('/status/:rowIndex', requireAdmin, async (req, res) => {
   try {
-    const { rowIndex }    = req.params;
-    const { status, actor } = req.body;
+    const { rowIndex } = req.params;
+    const { status }   = req.body;
+    const actor        = req.user;
 
     if (!rowIndex) return res.status(400).json({ success: false, message: 'rowIndex tidak valid.' });
+    if (!['Open', 'Close'].includes(String(status))) {
+      return res.status(400).json({ success: false, message: 'Status tidak valid.' });
+    }
 
     const rowIdx = Number(rowIndex);
     const now    = new Date().toISOString();
@@ -346,26 +385,24 @@ router.put('/status/:rowIndex', async (req, res) => {
 
     await sheetsService.updateCells('Data', rowIdx, updates);
 
-    if (actor) {
-      logActivity(actor, status === 'Close' ? 'Approve Close' : 'Reopen', rowSnapshot, `Status diubah menjadi "${status}"`);
-    }
+    logActivity(actor, status === 'Close' ? 'Approve Close' : 'Reopen', rowSnapshot, `Status diubah menjadi "${status}"`);
 
-    console.log(`✓ Status updated row ${rowIdx}: ${status}`);
+    console.log(`✓ Status updated row ${rowIdx}: ${status} by ${actor.username}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating status:', err);
     const isQueue = err.message?.includes('queue penuh');
-    res.status(isQueue ? 503 : 500).json({ success: false, message: 'Gagal update status: ' + err.message });
+    res.status(isQueue ? 503 : 500).json({ success: false, message: isQueue ? err.message : 'Gagal update status.' });
   }
 });
 
 /**
  * PUT /api/data/reject-close/:rowIndex
  */
-router.put('/reject-close/:rowIndex', async (req, res) => {
+router.put('/reject-close/:rowIndex', requireAdmin, async (req, res) => {
   try {
     const { rowIndex } = req.params;
-    const { actor }    = req.body;
+    const actor        = req.user;
 
     if (!rowIndex) return res.status(400).json({ success: false, message: 'rowIndex tidak valid.' });
 
@@ -384,27 +421,25 @@ router.put('/reject-close/:rowIndex', async (req, res) => {
 
     await sheetsService.updateCells('Data', rowIdx, { 'Request Close': 'Belum', 'Last Updated': now });
 
-    if (actor) {
-      logActivity(actor, 'Reject Close', rowSnapshot, 'Request Close ditolak oleh Admin');
-    }
+    logActivity(actor, 'Reject Close', rowSnapshot, 'Request Close ditolak oleh Admin');
 
-    console.log(`✓ Reject close row ${rowIdx}`);
+    console.log(`✓ Reject close row ${rowIdx} by ${actor.username}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Error rejecting close:', err);
     const isQueue = err.message?.includes('queue penuh');
-    res.status(isQueue ? 503 : 500).json({ success: false, message: 'Gagal menolak request close: ' + err.message });
+    res.status(isQueue ? 503 : 500).json({ success: false, message: isQueue ? err.message : 'Gagal menolak request close.' });
   }
 });
 
 /**
  * DELETE /api/data/delete/:rowIndex
  */
-router.delete('/delete/:rowIndex', async (req, res) => {
+router.delete('/delete/:rowIndex', requireAdmin, async (req, res) => {
   try {
     const { rowIndex } = req.params;
     const rowIdx       = Number(rowIndex);
-    const actor        = req.query.actor ? JSON.parse(decodeURIComponent(req.query.actor)) : null;
+    const actor        = req.user;
 
     if (!rowIdx || rowIdx < 2) {
       return res.status(400).json({ success: false, message: 'Tidak bisa menghapus baris header.' });
@@ -422,18 +457,16 @@ router.delete('/delete/:rowIndex', async (req, res) => {
 
     await sheetsService.deleteRow('Data', rowIdx);
 
-    if (actor) {
-      logActivity(actor, 'Hapus Temuan', rowSnapshot,
-        `Judul: ${rowSnapshot['Judul Audit'] || '—'} | Divisi: ${rowSnapshot['Divisi'] || '—'}`
-      );
-    }
+    logActivity(actor, 'Hapus Temuan', rowSnapshot,
+      `Judul: ${rowSnapshot['Judul Audit'] || '—'} | Divisi: ${rowSnapshot['Divisi'] || '—'}`
+    );
 
-    console.log(`✓ Deleted row ${rowIdx}`);
+    console.log(`✓ Deleted row ${rowIdx} by ${actor.username}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting data:', err);
     const isQueue = err.message?.includes('queue penuh');
-    res.status(isQueue ? 503 : 500).json({ success: false, message: 'Gagal menghapus baris: ' + err.message });
+    res.status(isQueue ? 503 : 500).json({ success: false, message: isQueue ? err.message : 'Gagal menghapus baris.' });
   }
 });
 

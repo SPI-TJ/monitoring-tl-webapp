@@ -19,11 +19,19 @@ const helmet      = require('helmet');
 const compression = require('compression');
 const morgan      = require('morgan');
 const path        = require('path');
+const rateLimit   = require('express-rate-limit');
 
 const authRoutes  = require('./routes/auth');
 const dataRoutes  = require('./routes/data');
 const usersRoutes = require('./routes/users');
 const sheetsService = require('./services/sheetsService');
+
+/* ── Boot-time security check ──────────────────────── */
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+  console.error('❌ FATAL: SESSION_SECRET kosong atau < 32 karakter. Setel via env sebelum start.');
+  console.error('   Generate: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
 
 const app      = express();
 const PORT     = process.env.PORT     || 3000;
@@ -89,6 +97,16 @@ app.get('/api/cache/invalidate', (req, res) => {
   sheetsService.invalidateCache(sheet);
   res.json({ success: true, invalidated: sheet || 'all' });
 });
+
+/* ── Login throttle: 5 percobaan per IP per menit ── */
+const loginLimiter = rateLimit({
+  windowMs        : 60_000,
+  max             : 5,
+  standardHeaders : true,
+  legacyHeaders   : false,
+  message         : { success: false, message: 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.' },
+});
+app.use('/api/auth/login', loginLimiter);
 
 app.use('/api/auth',  authRoutes);
 app.use('/api/data',  dataRoutes);

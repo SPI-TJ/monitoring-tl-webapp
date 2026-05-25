@@ -3585,7 +3585,10 @@
                     return sess.user;
                 } catch (e) { return null; }
             }
-            function clearSession() { localStorage.removeItem(SESSION_KEY); }
+            function clearSession() {
+                localStorage.removeItem(SESSION_KEY);
+                try { localStorage.removeItem('ptj_token'); } catch (_) {}
+            }
             function touchSession() {
                 try {
                     var raw = localStorage.getItem(SESSION_KEY);
@@ -3676,10 +3679,30 @@
                 fetchAll(function () { switchTab('dashboard'); });
             }
 
-            // Auto-restore sesi
+            // Auto-redirect kalau token expired di belakang layar
+            window.addEventListener('session-expired', function () {
+                try { toast('Sesi habis. Silakan login kembali.', 'toast-error'); } catch (_) {}
+                setTimeout(logout, 1200);
+            });
+
+            // Auto-restore sesi — verify token ke server, baru lanjut
             (function initSession() {
                 var savedUser = loadSession();
-                if (savedUser) { S.user = savedUser; startApp(); }
+                if (!savedUser) return;
+                if (!localStorage.getItem('ptj_token')) { clearSession(); return; }
+                API.verify().then(function (r) {
+                    if (r && r.success && r.user) {
+                        S.user = r.user;
+                        saveSession(r.user);
+                        startApp();
+                    } else {
+                        clearSession();
+                    }
+                }).catch(function () {
+                    // Network error — fallback: pakai data lokal, server akan verify saat call data API
+                    S.user = savedUser;
+                    startApp();
+                });
             })();
 
             function buildNav() {
@@ -4240,7 +4263,21 @@
                 if (rc !== 'Ya') $('evErr').classList.remove('show');
                 validateEv();
             }
-            function validateEv() { var v = $('picEv').value.trim(), rc = $('picRC').value; $('evErr').classList.toggle('show', rc === 'Ya' && !v); }
+            function _isHttpUrl(v) {
+                if (!v) return false;
+                try { var u = new URL(v); return u.protocol === 'http:' || u.protocol === 'https:'; }
+                catch (e) { return false; }
+            }
+            function validateEv() {
+                var v = $('picEv').value.trim(), rc = $('picRC').value;
+                var errEmpty = (rc === 'Ya' && !v);
+                var errBadUrl = (v && !_isHttpUrl(v));
+                var errEl = $('evErr');
+                if (errBadUrl) errEl.textContent = '⚠ Link Evidence harus berupa URL http:// atau https://';
+                else if (errEmpty) errEl.textContent = '⚠ Link Evidence wajib jika Request Close = Ya';
+                errEl.classList.toggle('show', errEmpty || errBadUrl);
+                return !(errEmpty || errBadUrl);
+            }
             function savePIC() {
                 var prog = parseInt($('picProg').value) || 0, rc = $('picRC').value, ev = $('picEv').value.trim();
                 if (prog < 0 || prog > 100) { toast('Progres 0–100', 'toast-error'); return; }

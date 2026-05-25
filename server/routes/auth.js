@@ -12,6 +12,8 @@
 const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheetsService');
+const { signToken } = require('../utils/token');
+const { requireAuth } = require('../middleware/auth');
 
 /**
  * POST /api/auth/login
@@ -81,11 +83,19 @@ router.post('/login', async (req, res) => {
     }
 
     if (foundUser) {
+      let token;
+      try {
+        token = signToken(foundUser);
+      } catch (e) {
+        console.error('Failed to sign token:', e.message);
+        return res.status(500).json({ success: false, message: 'Server tidak dikonfigurasi dengan benar.' });
+      }
       console.log(`✓ Login successful: ${foundUser.username} (${foundUser.role})`);
-      
+
       return res.json({
         success: true,
-        user: foundUser
+        user: foundUser,
+        token,
       });
     } else {
       return res.status(401).json({
@@ -117,14 +127,10 @@ router.post('/logout', (req, res) => {
 
 /**
  * GET /api/auth/verify
- * Verify session/token (placeholder untuk future implementation)
+ * Verifikasi token saat ini. Dipakai frontend untuk cek session masih valid.
  */
-router.get('/verify', (req, res) => {
-  // TODO: Implement token verification
-  res.json({
-    success: false,
-    message: 'Not implemented'
-  });
+router.get('/verify', requireAuth, (req, res) => {
+  res.json({ success: true, user: req.user });
 });
 
 module.exports = router;

@@ -12,6 +12,10 @@
 const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheetsService');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+
+// Semua endpoint user management hanya untuk Admin.
+router.use(requireAuth, requireAdmin);
 
 /**
  * GET /api/users
@@ -27,9 +31,13 @@ router.get('/', async (req, res) => {
       });
     }
 
-    const users = sheetsService.rowsToObjects(rawData);
+    // Jangan kirim Password ke client — bahkan untuk Admin.
+    const users = sheetsService.rowsToObjects(rawData).map(u => {
+      const { Password, ...safe } = u;
+      return safe;
+    });
 
-    console.log(`✓ Users fetched: ${users.length} users`);
+    console.log(`✓ Users fetched: ${users.length} users by ${req.user.username}`);
 
     res.json({
       users
