@@ -3540,7 +3540,7 @@
                 user: null, allRows: [], filtered: [], stats: null,
                 editIdx: null, delIdx: null, editUser: null, pending: [],
                 page: 1, PAGE: 50, tab: 'dashboard',
-                sortBy: null, sortDir: null, dashMonth: null, dashYear: null, charts: {}
+                sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, charts: {}
             };
 
             /* Tab Admin: Tidak ada actlog */
@@ -3654,7 +3654,7 @@
                 S = {
                     user: null, allRows: [], filtered: [], stats: null, editIdx: null, delIdx: null,
                     editUser: null, pending: [], page: 1, PAGE: 50, tab: 'dashboard',
-                    sortBy: null, sortDir: null, dashMonth: null, dashYear: null, charts: {}
+                    sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, charts: {}
                 };
                 $('app').style.display = 'none'; $('loginPage').style.display = 'flex';
                 $('loginUser').value = ''; $('loginPass').value = ''; hideLoginErr();
@@ -3738,6 +3738,17 @@
                 S.allRows.forEach(function (r) { var d = r['Due Date']; if (d) { var y = new Date(d).getFullYear(); if (!isNaN(y)) years[y] = 1; } });
                 var yearOpts = Object.keys(years).sort().map(y => '<option value="' + y + '"' + (S.dashYear == y ? ' selected' : '') + '>' + y + '</option>').join('');
                 var pillHtml = MONTHS.map((m, i) => '<button class="mf-pill' + (S.dashMonth === (i + 1) ? ' active' : '') + '" onclick="setDashMonth(' + (i + 1) + ')">' + m + '</button>').join('');
+                var kategoriPills = '';
+                if (isAdmin) {
+                    var kk = S.dashKategori;
+                    kategoriPills =
+                        '<div class="mf-pills" style="margin-left:8px">' +
+                        '<span class="mf-label" style="margin-right:6px">🗂 Kategori:</span>' +
+                        '<button class="mf-pill' + (kk === null ? ' active' : '') + '" onclick="setDashKategori(null)">Semua</button>' +
+                        '<button class="mf-pill' + (kk === 'Internal' ? ' active' : '') + '" onclick="setDashKategori(\'Internal\')">Internal</button>' +
+                        '<button class="mf-pill' + (kk === 'Eksternal' ? ' active' : '') + '" onclick="setDashKategori(\'Eksternal\')">Eksternal</button>' +
+                        '</div>';
+                }
                 var monthFilterHtml =
                     '<div class="month-filter-wrap">' +
                     '<span class="mf-label">📅 Filter s.d. Bulan (kumulatif, by Due Date):</span>' +
@@ -3745,6 +3756,7 @@
                     '<button class="mf-pill' + (S.dashMonth === null ? ' active' : '') + '" onclick="setDashMonth(null)">Semua</button>' +
                     pillHtml + '</div>' +
                     (yearOpts ? '<select class="mf-year-sel" onchange="setDashYear(this.value)"><option value="">Semua Tahun</option>' + yearOpts + '</select>' : '') +
+                    kategoriPills +
                     (isAdmin ? '<button class="btn btn-primary btn-sm" id="btnExportRekap" onclick="exportAdminRekap()" style="margin-left:auto" title="Download rekap distribusi per Departemen sesuai filter aktif">⬇ Download Rekap Distribusi</button>' : '') +
                     '</div>';
 
@@ -3779,7 +3791,7 @@
                 // Tren % Close per Bulan — hanya untuk Admin, full-width
                 var trendCardHtml = '';
                 if (isAdmin) {
-                    var td = buildTrendData(S.allRows, S.dashYear, S.dashMonth);
+                    var td = buildTrendData(filterByKategoriDash(S.allRows), S.dashYear, S.dashMonth);
                     var tr = trendDirection(td.pct);
                     trendCardHtml = '<div class="charts-grid charts-1">' +
                         '<div class="chart-card"><div class="cc-head">' +
@@ -3871,13 +3883,18 @@
                 return { label: 'Tren Stagnan (' + (diff > 0 ? '+' : '') + diff + ' pp)', cls: 'tr-flat', icon: '−' };
             }
 
+            function filterByKategoriDash(rows) {
+                if (!S.dashKategori) return rows;
+                return rows.filter(function (r) { return String(r['Kategori Pemeriksaan'] || '') === S.dashKategori; });
+            }
             function filterDashRows() {
-                if (!S.dashMonth && !S.dashYear) return S.allRows;
+                var base = filterByKategoriDash(S.allRows);
+                if (!S.dashMonth && !S.dashYear) return base;
                 // Filter kumulatif: tampilkan rekomendasi dengan Due Date s.d. (≤) bulan terpilih.
                 //  - Year+Month  → YTD: dari 1 Jan {year} s.d. akhir bulan {month} {year}
                 //  - Month saja  → bulan 1..month di semua tahun (kumulatif lintas tahun)
                 //  - Year saja   → seluruh tahun terpilih
-                return S.allRows.filter(function (r) {
+                return base.filter(function (r) {
                     if (!r['Due Date']) return false;
                     var d = new Date(r['Due Date']);
                     if (isNaN(d)) return false;
@@ -3909,6 +3926,7 @@
 
             function setDashMonth(m) { S.dashMonth = m; renderDashboard(); }
             function setDashYear(y) { S.dashYear = y || null; renderDashboard(); }
+            function setDashKategori(k) { S.dashKategori = k || null; renderDashboard(); }
 
             function buildDistCards(isAdmin, s) {
                 var lbl = S.dashMonth
@@ -3957,7 +3975,7 @@
                     // ─── Line Chart: Tren % Close per Bulan (cumulative) ───
                     var trEl = document.getElementById('chartTrend');
                     if (trEl) {
-                        var td = buildTrendData(S.allRows, S.dashYear, S.dashMonth);
+                        var td = buildTrendData(filterByKategoriDash(S.allRows), S.dashYear, S.dashMonth);
                         if (td.labels.length > 0) {
                             var ctx = trEl.getContext('2d');
                             // Gradient fill di bawah garis — tone biru lembut, konsisten tema
@@ -4050,20 +4068,23 @@
                 return '';
             }
 
-            function renderTable(q, stF, rcF, divF, deptF) {
+            function renderTable(q, stF, rcF, divF, deptF, katF) {
                 q = q !== undefined ? q : getFV('srchInput');
                 stF = stF !== undefined ? stF : getFV('fltStatus');
                 rcF = rcF !== undefined ? rcF : getFV('fltRC');
                 divF = divF !== undefined ? divF : getFV('fltDivisi');
                 deptF = deptF !== undefined ? deptF : getFV('fltDept');
+                katF = katF !== undefined ? katF : getFV('fltKategori');
 
                 var isAdmin = S.user.role === 'Admin', ql = q.toLowerCase();
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel.
                 // Status filter dropdown juga di-kunci ke 'Open' untuk PIC (lihat di bawah).
                 if (!isAdmin) stF = 'Open';
+                if (!isAdmin) katF = '';
+                S.tableKategori = katF || null;
                 S.filtered = S.allRows.filter(function (r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
-                    return m && (!stF || String(r['Status'] || '') === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF);
+                    return m && (!stF || String(r['Status'] || '') === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
                 });
                 if (S.sortBy && S.sortDir) {
                     var dirMul = S.sortDir === 'asc' ? 1 : -1;
@@ -4135,16 +4156,17 @@
                 }).join('');
 
                 // Untuk PIC, stF di-force ke 'Open' (lihat di atas) — jangan dihitung sebagai filter aktif.
-                var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF].filter(Boolean).length;
+                var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF, (isAdmin ? katF : '')].filter(Boolean).length;
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || (isAdmin && katF) ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
                     '<div class="toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
+                    (isAdmin ? '<select id="fltKategori" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' : '') +
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -4157,6 +4179,7 @@
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
+                    (isAdmin ? '<select id="m_fltKategori" onchange="applyFilter()"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' : '') +
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -4193,7 +4216,7 @@
             function applyFilter() { S.page = 1; renderTable(); }
             function toggleFilterPanel() { var p = $('filterPanelMobile'); if (!p) return; p.classList.toggle('open'); }
             function mobileSearch() { var p = $('filterPanelMobile'); if (p && !p.classList.contains('open')) p.classList.add('open'); var inp = $('m_srchInput') || $('srchInput'); if (inp) setTimeout(() => inp.focus(), 100); }
-            function clearFilters() { S.page = 1; renderTable('', '', '', '', ''); }
+            function clearFilters() { S.page = 1; renderTable('', '', '', '', '', ''); }
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
             window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = S.user.role === 'Admin' && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
