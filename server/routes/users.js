@@ -223,7 +223,7 @@ router.delete('/delete/:username', async (req, res) => {
 
     const dataRows = rawData.slice(1);
 
-    // Cari user
+    // Cari User
     let rowIndex = -1;
     for (let i = 0; i < dataRows.length; i++) {
       if (String(dataRows[i][0] || '').trim() === String(username).trim()) {
