@@ -3470,6 +3470,7 @@
                             <select id="uRole" onchange="toggleDiv()">
                                 <option value="PIC">PIC</option>
                                 <option value="Admin">Admin</option>
+                                <option value="Admin Audit KNKT">Admin Audit KNKT</option>
                             </select>
                         </div>
                         <div class="form-col" id="divField">
@@ -3554,9 +3555,17 @@
                 { id: 'dashboard', label: 'Dashboard', icon: '📊' },
                 { id: 'data', label: 'Data Divisi Saya', icon: '📋' },
             ];
+            /* Admin Audit KNKT: sama seperti Admin tapi tanpa tab Users (data sudah difilter server-side ke Jenis Pemeriksaan='KNKT'). */
+            var TABS_ADMIN_KNKT = [
+                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'data', label: 'Data Temuan', icon: '📋' },
+                { id: 'request', label: 'Request Close', icon: '🔔', badge: true },
+            ];
+            function isAdminRole(role) { return role === 'Admin' || role === 'Admin Audit KNKT'; }
             var ADMIN_COLS = [
                 'Tanggal Laporan', 'Jenis Pemeriksaan', 'Kategori Pemeriksaan', 'Judul Audit',
                 'Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Due Date', 'Tanggapan Auditee',
+                'Catatan',
                 'Status', 'Kode Direktorat', 'Divisi', 'Departemen', 'Request Close', 'Progres%',
                 'Link Evidence', 'Tanggal Close', 'Last Updated'
             ];
@@ -3670,7 +3679,7 @@
                 $('userAv').textContent = (u.nama || u.username || '?').charAt(0).toUpperCase();
                 $('hdrUser').textContent = u.nama || u.username;
                 $('hdrRole').textContent = u.role;
-                $('hdrRole').className = 'u-role ' + (u.role === 'Admin' ? 'role-admin' : 'role-pic');
+                $('hdrRole').className = 'u-role ' + (isAdminRole(u.role) ? 'role-admin' : 'role-pic');
                 startIdleWatcher();
                 buildNav();
                 fetchAll(function () { switchTab('dashboard'); });
@@ -3683,7 +3692,9 @@
             })();
 
             function buildNav() {
-                var tabs = S.user.role === 'Admin' ? TABS_ADMIN : TABS_PIC;
+                var tabs = S.user.role === 'Admin' ? TABS_ADMIN
+                        : S.user.role === 'Admin Audit KNKT' ? TABS_ADMIN_KNKT
+                        : TABS_PIC;
                 var rc = S.allRows.filter(r => String(r['Request Close'] || '') === 'Ya' && String(r['Status'] || '') !== 'Close').length;
 
                 $('mainNav').innerHTML = tabs.map(function (t) {
@@ -3703,7 +3714,7 @@
                 }
 
                 var fab = $('fabBtn');
-                if (fab) fab.style.display = (S.user.role === 'Admin' && S.tab === 'data' && window.innerWidth <= 768) ? 'flex' : 'none';
+                if (fab) fab.style.display = (isAdminRole(S.user.role) && S.tab === 'data' && window.innerWidth <= 768) ? 'flex' : 'none';
             }
 
             function switchTab(tab) {
@@ -3733,14 +3744,14 @@
                DASHBOARD
             ══════════════════════════════════════ */
             function renderDashboard() {
-                var isAdmin = S.user.role === 'Admin';
+                var isAdmin = isAdminRole(S.user.role);
                 var years = {};
                 S.allRows.forEach(function (r) { var d = r['Due Date']; if (d) { var y = new Date(d).getFullYear(); if (!isNaN(y)) years[y] = 1; } });
                 var yearOpts = Object.keys(years).sort().map(y => '<option value="' + y + '"' + (S.dashYear == y ? ' selected' : '') + '>' + y + '</option>').join('');
                 var pillHtml = MONTHS.map((m, i) => '<button class="mf-pill' + (S.dashMonth === (i + 1) ? ' active' : '') + '" onclick="setDashMonth(' + (i + 1) + ')">' + m + '</button>').join('');
                 var kategoriPills = '';
                 var jenisPills = '';
-                if (isAdmin) {
+                {
                     var kk = S.dashKategori;
                     kategoriPills =
                         '<div class="mf-pills" style="margin-left:8px">' +
@@ -4117,14 +4128,12 @@
                 deptF = deptF !== undefined ? deptF : getFV('fltDept');
                 katF = katF !== undefined ? katF : getFV('fltKategori');
 
-                var isAdmin = S.user.role === 'Admin', ql = q.toLowerCase();
+                var isAdmin = isAdminRole(S.user.role), ql = q.toLowerCase();
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel.
                 // Status filter dropdown juga di-kunci ke 'Open' untuk PIC (lihat di bawah).
                 if (!isAdmin) stF = 'Open';
-                if (!isAdmin) katF = '';
-                if (!isAdmin) S.tableJenis = [];
                 S.tableKategori = katF || null;
-                var jenisSel = (isAdmin && S.tableJenis) ? S.tableJenis : [];
+                var jenisSel = S.tableJenis || [];
                 S.filtered = S.allRows.filter(function (r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
                     var jOk = jenisSel.length === 0 || jenisSel.indexOf(String(r['Jenis Pemeriksaan'] || '')) >= 0;
@@ -4159,7 +4168,7 @@
                 { var dp = {}; S.allRows.forEach(r => { if (r['Departemen']) dp[r['Departemen']] = 1; }); deptOpts = Object.keys(dp).sort().map(d => '<option value="' + escH(d) + '"' + (deptF === d ? ' selected' : '') + '>' + escH(d) + '</option>').join(''); }
 
                 var jenisFilterHtml = '';
-                if (isAdmin) {
+                {
                     var jSet = {};
                     S.allRows.forEach(function (r) { var j = String(r['Jenis Pemeriksaan'] || '').trim(); if (j) jSet[j] = 1; });
                     var jArr = Object.keys(jSet).sort();
@@ -4221,18 +4230,18 @@
                 }).join('');
 
                 // Untuk PIC, stF di-force ke 'Open' (lihat di atas) — jangan dihitung sebagai filter aktif.
-                var jenisActive = isAdmin && (S.tableJenis || []).length > 0;
-                var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF, (isAdmin ? katF : '')].filter(Boolean).length + (jenisActive ? 1 : 0);
+                var jenisActive = (S.tableJenis || []).length > 0;
+                var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0);
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || (isAdmin && katF) || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
                     '<div class="toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    (isAdmin ? '<select id="fltKategori" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' : '') +
+                    '<select id="fltKategori" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -4246,7 +4255,7 @@
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    (isAdmin ? '<select id="m_fltKategori" onchange="applyFilter()"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' : '') +
+                    '<select id="m_fltKategori" onchange="applyFilter()"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -4286,7 +4295,7 @@
             function clearFilters() { S.tableJenis = []; S.page = 1; renderTable('', '', '', '', '', ''); }
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
-            window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = S.user.role === 'Admin' && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
+            window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = isAdminRole(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
 
             /* ══════════════════════════════════════
                REQUEST CLOSE
@@ -4361,7 +4370,7 @@
                     var v = row && row[c] !== undefined ? row[c] : '';
                     if (c === 'Status') return fc(c, '<select id="ae_' + c + '"><option value="Open"' + ((!row || v === 'Open') ? ' selected' : '') + '>Open</option><option value="Close"' + (v === 'Close' ? ' selected' : '') + '>Close</option></select>');
                     if (c === 'Request Close') return fc(c, '<select id="ae_' + c + '"><option value="Belum"' + ((!row || v === 'Belum') ? ' selected' : '') + '>Belum</option><option value="Ya"' + (v === 'Ya' ? ' selected' : '') + '>Ya</option></select>');
-                    if (['Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Tanggapan Auditee'].includes(c)) return '<div class="form-col full"><span class="form-label">' + c + (c === 'Rekomendasi' || c === 'Temuan Pemeriksaan' ? ' <span class="req">*</span>' : '') + '</span><textarea id="ae_' + c + '" rows="3">' + escH(String(v)) + '</textarea></div>';
+                    if (['Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Tanggapan Auditee', 'Catatan'].includes(c)) return '<div class="form-col full"><span class="form-label">' + c + (c === 'Rekomendasi' || c === 'Temuan Pemeriksaan' ? ' <span class="req">*</span>' : '') + '</span><textarea id="ae_' + c + '" rows="3">' + escH(String(v)) + '</textarea></div>';
                     if (c === 'Progres%') return fc(c, '<input type="number" id="ae_' + c + '" min="0" max="100" value="' + escH(String(v || 0)) + '"/>');
                     if (['Tanggal Laporan', 'Due Date', 'Tanggal Close'].includes(c)) return fc(c, '<input type="date" id="ae_' + c + '" value="' + fmtDateInp(v) + '"/>');
                     if (c === 'Link Evidence') return '<div class="form-col full"><span class="form-label">' + c + '</span><input type="text" id="ae_' + c + '" placeholder="https://drive.google.com/…" value="' + escH(String(v)) + '"/></div>';
@@ -4391,7 +4400,7 @@
             ══════════════════════════════════════ */
             function openDetail(ri) {
                 var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; }
-                var isAdmin = S.user.role === 'Admin';
+                var isAdmin = isAdminRole(S.user.role);
                 $('detSub').textContent = (row['Divisi'] || '') + ' — ' + (row['Departemen'] || '');
                 var due = row['Due Date'] && new Date(row['Due Date']) < new Date() && row['Status'] !== 'Close';
                 var prog = Number(row['Progres%']) || 0;
@@ -4410,10 +4419,11 @@
                     ['Divisi', escH(row['Divisi'] || '—')], ['Departemen', escH(row['Departemen'] || '—')],
                     ['Due Date', '<span style="font-weight:700;' + (due ? 'color:#9B1C1C' : 'color:var(--text2)') + '">' + fmtDate(row['Due Date']) + '</span>' + (due ? '&ensp;<span class="overdue-tag" style="font-size:10px;padding:2px 7px">⚠ OVERDUE</span>' : '')],
                     ['Status', '<span class="badge ' + (row['Status'] === 'Close' ? 'badge-close' : 'badge-open') + '">' + escH(row['Status'] || 'Open') + '</span>'],
-                    ['Temuan Pemeriksaan', '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Temuan Pemeriksaan'] || '—') + '</div>'],
-                    ['Rekomendasi', '<div style="background:var(--tj-blue-pale);border:1px solid rgba(0,102,179,.15);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text)">' + escH(row['Rekomendasi'] || '—') + '</div>'],
+                    ['Temuan Pemeriksaan', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Temuan Pemeriksaan'] || '—') + '</div>'],
+                    ['Rekomendasi', '<div class="cell-pre" style="background:var(--tj-blue-pale);border:1px solid rgba(0,102,179,.15);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text)">' + escH(row['Rekomendasi'] || '—') + '</div>'],
                     ['Tindak Lanjut', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Tindak Lanjut'] || '—') + '</div>'],
                     ['Tanggapan Auditee', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Tanggapan Auditee'] || '—') + '</div>'],
+                    ['Catatan', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Catatan'] || '—') + '</div>'],
                     ['Progres %', '<div style="display:flex;align-items:center;gap:10px"><div class="pct-bar-wrap" style="width:180px"><div class="pct-bar"><div class="' + progFill + '" style="width:' + prog + '%"></div></div><span class="pct-num" style="color:' + progColor + ';font-size:13px">' + prog + '%</span></div></div>'],
                     ['Request Close', '<span class="badge ' + (row['Request Close'] === 'Ya' ? 'badge-ya' : 'badge-belum') + '">' + escH(row['Request Close'] || 'Belum') + '</span>'],
                     ['Link Evidence', row['Link Evidence'] ? '<a href="' + escH(row['Link Evidence']) + '" target="_blank" style="color:var(--tj-blue);text-decoration:underline;word-break:break-all;font-size:13px">📎 ' + escH(row['Link Evidence']) + '</a>' : '<span style="color:var(--text3)">Belum dilampirkan</span>'],

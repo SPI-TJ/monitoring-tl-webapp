@@ -149,6 +149,9 @@ router.get('/', async (req, res) => {
     if (role === 'PIC' && divisi) {
       rows = rows.filter(r => String(r['Divisi'] || '').trim() === String(divisi).trim());
     }
+    if (role === 'Admin Audit KNKT') {
+      rows = rows.filter(r => String(r['Jenis Pemeriksaan'] || '').trim().toUpperCase() === 'KNKT');
+    }
     rows = rows.reverse();
 
     console.log(`✓ Data fetched: ${rows.length} rows (role: ${role || 'all'})`);
@@ -280,7 +283,7 @@ router.put('/update/:rowIndex', async (req, res) => {
       }
       if (header === 'Last Updated') return now;
 
-      if (role === 'Admin') {
+      if (role === 'Admin' || role === 'Admin Audit KNKT') {
         if (updatedData[header] === undefined) return existingObj[header];
         if (DATA_DATE_FIELDS.has(header)) return normalizeToMMDDYYYY(updatedData[header]);
         return updatedData[header];
@@ -294,7 +297,8 @@ router.put('/update/:rowIndex', async (req, res) => {
 
     // Log — fire-and-forget
     if (actor) {
-      const tracked = role === 'Admin'
+      const isAdminRole = role === 'Admin' || role === 'Admin Audit KNKT';
+      const tracked = isAdminRole
         ? ['Status', 'Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence', 'Due Date']
         : ['Progres%', 'Request Close', 'Tindak Lanjut', 'Tanggapan Auditee', 'Link Evidence'];
 
@@ -305,7 +309,7 @@ router.put('/update/:rowIndex', async (req, res) => {
         ? changed.map(f => `${f}: "${existingObj[f] || ''}" → "${updatedData[f]}"`).join(' | ')
         : 'Tidak ada perubahan';
 
-      logActivity(actor, role === 'Admin' ? 'Edit Admin' : 'Edit PIC', { ...existingObj }, keterangan);
+      logActivity(actor, isAdminRole ? 'Edit Admin' : 'Edit PIC', { ...existingObj }, keterangan);
     }
 
     console.log(`✓ Updated row ${rowIdx} (${role})`);
