@@ -3217,7 +3217,6 @@
         <div class="fab-overlay" id="fabOverlay" onclick="closeFab()"></div>
         <div class="fab-menu" id="fabMenu">
             <div class="fab-item" onclick="closeFab();openAddRow()">✏️ Tambah Temuan</div>
-            <div class="fab-item" onclick="closeFab();openUpload()">⬆ Upload CSV</div>
         </div>
         <button class="fab" id="fabBtn" onclick="toggleFab()" style="display:none">＋</button>
 
@@ -4246,7 +4245,7 @@
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
                     (isAdmin
-                        ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button><button class="btn btn-ghost btn-sm" onclick="openUpload()">⬆ Upload CSV</button>'
+                        ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
                     ) +
                     '</div></div>' +
