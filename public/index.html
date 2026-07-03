@@ -4440,6 +4440,7 @@
                     ['Tanggal Close', row['Tanggal Close'] ? '<span style="color:var(--green);font-weight:700">' + fmtDate(row['Tanggal Close']) + '</span>' : '<span style="color:var(--text3)">Belum ditutup</span>'],
                     ['Last Updated', luHtml],
                 ];
+                if (S.user.role === 'Manajemen') fields = fields.filter(f => f[0] !== 'Link Evidence');
                 $('detBody').innerHTML = fields.map(f => '<div class="detail-row"><div class="det-lbl">' + f[0] + '</div><div class="det-val">' + f[1] + '</div></div>').join('');
                 var foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button>';
                 if (canEdit(S.user.role)) {
