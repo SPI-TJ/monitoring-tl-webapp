@@ -19,6 +19,13 @@ const express      = require('express');
 const router       = express.Router();
 const sheetsService = require('../services/sheetsService');
 
+/* Role read-only: tidak boleh menulis data apapun. */
+const READ_ONLY_ROLES = new Set(['Manajemen']);
+function isReadOnly(role) { return READ_ONLY_ROLES.has(String(role || '').trim()); }
+function denyReadOnly(res, role) {
+  return res.status(403).json({ success: false, message: `Role "${role}" hanya memiliki hak baca (read-only).` });
+}
+
 const ACTIVITY_LOG_SHEET   = 'Activity Log';
 const ACTIVITY_LOG_HEADERS = [
   'Timestamp', 'Username', 'Nama', 'Role', 'Action',
@@ -202,6 +209,7 @@ router.post('/add', async (req, res) => {
   try {
     const { rows: newRows, actor } = req.body;
 
+    if (actor && isReadOnly(actor.role)) return denyReadOnly(res, actor.role);
     if (!newRows || !Array.isArray(newRows) || newRows.length === 0) {
       return res.status(400).json({ success: false, message: 'Tidak ada data untuk ditambahkan.' });
     }
@@ -254,6 +262,7 @@ router.put('/update/:rowIndex', async (req, res) => {
     const { rowIndex }                         = req.params;
     const { role, data: updatedData, actor }   = req.body;
 
+    if (isReadOnly(role) || (actor && isReadOnly(actor.role))) return denyReadOnly(res, role || actor?.role);
     if (!rowIndex || !updatedData) {
       return res.status(400).json({ success: false, message: 'Parameter tidak lengkap.' });
     }
@@ -329,6 +338,7 @@ router.put('/status/:rowIndex', async (req, res) => {
     const { rowIndex }    = req.params;
     const { status, actor } = req.body;
 
+    if (actor && isReadOnly(actor.role)) return denyReadOnly(res, actor.role);
     if (!rowIndex) return res.status(400).json({ success: false, message: 'rowIndex tidak valid.' });
 
     const rowIdx = Number(rowIndex);
@@ -371,6 +381,7 @@ router.put('/reject-close/:rowIndex', async (req, res) => {
     const { rowIndex } = req.params;
     const { actor }    = req.body;
 
+    if (actor && isReadOnly(actor.role)) return denyReadOnly(res, actor.role);
     if (!rowIndex) return res.status(400).json({ success: false, message: 'rowIndex tidak valid.' });
 
     const rowIdx = Number(rowIndex);
@@ -410,6 +421,7 @@ router.delete('/delete/:rowIndex', async (req, res) => {
     const rowIdx       = Number(rowIndex);
     const actor        = req.query.actor ? JSON.parse(decodeURIComponent(req.query.actor)) : null;
 
+    if (actor && isReadOnly(actor.role)) return denyReadOnly(res, actor.role);
     if (!rowIdx || rowIdx < 2) {
       return res.status(400).json({ success: false, message: 'Tidak bisa menghapus baris header.' });
     }

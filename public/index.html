@@ -3470,6 +3470,7 @@
                                 <option value="PIC">PIC</option>
                                 <option value="Admin">Admin</option>
                                 <option value="Admin Audit KNKT">Admin Audit KNKT</option>
+                                <option value="Manajemen">Manajemen</option>
                             </select>
                         </div>
                         <div class="form-col" id="divField">
@@ -3560,7 +3561,16 @@
                 { id: 'data', label: 'Data Temuan', icon: '📋' },
                 { id: 'request', label: 'Request Close', icon: '🔔', badge: true },
             ];
-            function isAdminRole(role) { return role === 'Admin' || role === 'Admin Audit KNKT'; }
+            /* Manajemen: view-only monitoring — hanya Dashboard + Data Temuan, tanpa aksi tulis. */
+            var TABS_MANAJEMEN = [
+                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'data', label: 'Data Temuan', icon: '📋' },
+            ];
+            /* isAdminRole → menentukan tampilan "view admin" (semua data, chart admin, filter divisi, dsb.).
+               Manajemen ikut true agar melihat data seperti Admin, tetapi TIDAK dapat mengubah data —
+               gunakan canEdit() untuk memutuskan tampilan tombol aksi (Edit/Hapus/Approve/Tambah). */
+            function isAdminRole(role) { return role === 'Admin' || role === 'Admin Audit KNKT' || role === 'Manajemen'; }
+            function canEdit(role) { return role === 'Admin' || role === 'Admin Audit KNKT'; }
             var ADMIN_COLS = [
                 'Tanggal Laporan', 'Jenis Pemeriksaan', 'Kategori Pemeriksaan', 'Judul Audit',
                 'Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Due Date', 'Tanggapan Auditee',
@@ -3693,6 +3703,7 @@
             function buildNav() {
                 var tabs = S.user.role === 'Admin' ? TABS_ADMIN
                         : S.user.role === 'Admin Audit KNKT' ? TABS_ADMIN_KNKT
+                        : S.user.role === 'Manajemen' ? TABS_MANAJEMEN
                         : TABS_PIC;
                 var rc = S.allRows.filter(r => String(r['Request Close'] || '') === 'Ya' && String(r['Status'] || '') !== 'Close').length;
 
@@ -3713,7 +3724,7 @@
                 }
 
                 var fab = $('fabBtn');
-                if (fab) fab.style.display = (isAdminRole(S.user.role) && S.tab === 'data' && window.innerWidth <= 768) ? 'flex' : 'none';
+                if (fab) fab.style.display = (canEdit(S.user.role) && S.tab === 'data' && window.innerWidth <= 768) ? 'flex' : 'none';
             }
 
             function switchTab(tab) {
@@ -4216,7 +4227,7 @@
                         '<td><span class="badge ' + (rc === 'Ya' ? 'badge-ya' : 'badge-belum') + '">' + escH(rc) + '</span></td>' +
                         '<td><span class="badge ' + (st === 'Close' ? 'badge-close' : 'badge-open') + '">' + escH(st || 'Open') + '</span></td>' +
                         '<td><span class="mono" style="font-size:11px;color:var(--text3)">' + (r['Tanggal Close'] ? fmtDate(r['Tanggal Close']) : '—') + '</span></td>' +
-                        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (isAdmin ? '<button class="btn btn-subtle btn-xs" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-xs" onclick="event.stopPropagation();approveClose(' + ri + ')">✓</button>' : '') + '<button class="btn btn-red btn-xs" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : '<button class="btn btn-amber btn-xs" onclick="event.stopPropagation();openPICEdit(' + ri + ')">Update</button>') + '</div></td></tr>';
+                        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (canEdit(S.user.role) ? '<button class="btn btn-subtle btn-xs" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-xs" onclick="event.stopPropagation();approveClose(' + ri + ')">✓</button>' : '') + '<button class="btn btn-red btn-xs" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : (isAdmin ? '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍</button>' : '<button class="btn btn-amber btn-xs" onclick="event.stopPropagation();openPICEdit(' + ri + ')">Update</button>')) + '</div></td></tr>';
                 }).join('');
 
                 var mobileCards = slice.length === 0 ? '<div class="empty"><div class="empty-icon">🔍</div>' + emptyMsg + '</div>' : slice.map(function (r) {
@@ -4225,7 +4236,7 @@
                     return '<div class="dc' + (over ? ' dc-overdue' : '') + '" onclick="openDetail(' + ri + ')">' +
                         '<div class="dc-head"><span class="dc-no">#' + escH(String(r['No'] || '')) + '</span><div class="dc-meta"><div class="dc-judul">' + escH(r['Judul Audit'] || '') + '</div><div class="dc-tags"><span class="tag">' + escH(r['Jenis Pemeriksaan'] || '') + '</span>' + (over ? '<span style="background:var(--tj-red-light);color:var(--tj-red);border:1px solid rgba(227,29,40,.2);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:700">⚠ Overdue</span>' : '') + '</div></div><span class="badge ' + (st === 'Close' ? 'badge-close' : 'badge-open') + '" style="flex-shrink:0">' + escH(st || 'Open') + '</span></div>' +
                         '<div class="dc-body"><div class="dc-rek">' + escH(r['Rekomendasi'] || '') + '</div><div class="dc-row2"><div class="dc-field"><span class="dc-field-lbl">🏢 Divisi</span><span class="dc-field-val">' + escH(r['Divisi'] || '—') + '</span></div><div class="dc-field"><span class="dc-field-lbl">🏬 Departemen</span><span class="dc-field-val">' + escH(r['Departemen'] || '—') + '</span></div><div class="dc-field"><span class="dc-field-lbl">📅 Due Date</span><span class="dc-field-val" style="' + (over ? 'color:var(--red);font-weight:700' : '') + '">' + fmtDate(r['Due Date']) + '</span></div><div class="dc-field"><span class="dc-field-lbl">🔔 Req. Close</span><span class="dc-field-val"><span class="badge ' + (rc === 'Ya' ? 'badge-ya' : 'badge-belum') + '">' + escH(rc) + '</span></span></div></div><div class="dc-prog-row"><div class="prog-wrap"><div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:' + prog + '%"></div></div><span class="prog-val">' + prog + '%</span></div></div></div>' +
-                        '<div class="dc-foot"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍 Detail</button>' + (isAdmin ? '<button class="btn btn-subtle btn-sm" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️ Edit</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="event.stopPropagation();approveClose(' + ri + ')">✓ Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : '<button class="btn btn-amber btn-sm" onclick="event.stopPropagation();openPICEdit(' + ri + ')">✏️ Update</button>') + '</div></div>';
+                        '<div class="dc-foot"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍 Detail</button>' + (canEdit(S.user.role) ? '<button class="btn btn-subtle btn-sm" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️ Edit</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="event.stopPropagation();approveClose(' + ri + ')">✓ Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : (isAdmin ? '' : '<button class="btn btn-amber btn-sm" onclick="event.stopPropagation();openPICEdit(' + ri + ')">✏️ Update</button>')) + '</div></div>';
                 }).join('');
 
                 // Untuk PIC, stF di-force ke 'Open' (lihat di atas) — jangan dihitung sebagai filter aktif.
@@ -4244,7 +4255,7 @@
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
-                    (isAdmin
+                    (canEdit(S.user.role)
                         ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
                     ) +
@@ -4258,7 +4269,7 @@
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
-                    (isAdmin ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
+                    (canEdit(S.user.role) ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
                     (filterCount > 0 ? '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Reset Filter</button>' : '') +
                     '</div>' +
                     '<div class="table-scroll"><table><thead><tr>' +
@@ -4294,7 +4305,7 @@
             function clearFilters() { S.tableJenis = []; S.page = 1; renderTable('', '', '', '', '', ''); }
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
-            window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = isAdminRole(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
+            window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = canEdit(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
 
             /* ══════════════════════════════════════
                REQUEST CLOSE
@@ -4431,9 +4442,7 @@
                 ];
                 $('detBody').innerHTML = fields.map(f => '<div class="detail-row"><div class="det-lbl">' + f[0] + '</div><div class="det-val">' + f[1] + '</div></div>').join('');
                 var foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button>';
-                if (!isAdmin) {
-                    foot += '<button class="btn btn-amber" onclick="closeModal(\'mDetail\');openPICEdit(' + ri + ')">✏️ Update Progress</button>';
-                } else {
+                if (canEdit(S.user.role)) {
                     // Saat ada Request Close pending, tampilkan pair Approve/Tolak (alur approval),
                     // sembunyikan tombol Hapus untuk menghindari mis-klik destruktif.
                     // Tombol Hapus baru muncul kembali pada baris reguler (tidak ada request pending).
@@ -4444,7 +4453,11 @@
                             ? '<button class="btn btn-green btn-sm" onclick="closeModal(\'mDetail\');approveClose(' + ri + ')">✓ Approve Close</button>' +
                               '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');rejectClose(' + ri + ')">✕ Tolak Close</button>'
                             : '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');delConfirm(' + ri + ')">🗑 Hapus</button>');
+                } else if (!isAdmin) {
+                    // PIC → boleh update progress
+                    foot += '<button class="btn btn-amber" onclick="closeModal(\'mDetail\');openPICEdit(' + ri + ')">✏️ Update Progress</button>';
                 }
+                // Manajemen (isAdmin view tapi bukan canEdit) → hanya tombol Tutup
                 $('detFoot').innerHTML = foot; openModal('mDetail');
             }
 
