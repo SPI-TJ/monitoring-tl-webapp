@@ -1011,6 +1011,23 @@
             color: #9B1C1C;
         }
 
+        /* Stat card "Dalam Proses" — mengikuti pola warna kartu lain (ungu). */
+        .sc-proses::before {
+            background: linear-gradient(90deg, var(--purple), #A78BFA);
+        }
+
+        .sc-proses::after {
+            background: var(--purple);
+        }
+
+        .sc-proses .stat-icon-wrap {
+            background: var(--purple-light);
+        }
+
+        .sc-proses .stat-number {
+            color: var(--purple);
+        }
+
         .stat-label {
             font-size: 12px;
             font-weight: 600;
@@ -1136,6 +1153,18 @@
 
         .badge-close::before {
             background: var(--green);
+        }
+
+        /* Badge status "Proses" — status turunan (Open + progress > 0). Warna ungu agar
+           terbedakan jelas dari Open (amber) dan Close (hijau). */
+        .badge-proses {
+            background: var(--purple-light);
+            color: var(--purple);
+            border: 1px solid rgba(124, 58, 237, .2);
+        }
+
+        .badge-proses::before {
+            background: var(--purple);
         }
 
         .badge-ya {
@@ -1445,6 +1474,13 @@
             margin-bottom: 20px;
         }
 
+        /* Cegah grid item "meledak" / overflow saat konten kanvas lebih lebar dari track.
+           Tanpa min-width:0, grid item minimal selebar kontennya → memicu shrink tak proporsional
+           saat browser di-zoom. */
+        .charts-grid > * {
+            min-width: 0;
+        }
+
         .charts-3 {
             grid-template-columns: 1fr 1fr 1fr;
         }
@@ -1508,10 +1544,6 @@
             border: 1px solid var(--border);
         }
 
-        .cc-body-wide canvas {
-            max-height: 280px;
-        }
-
         .chart-card {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -1547,12 +1579,30 @@
             font-weight: 500;
         }
 
+        /* ── FIX responsive/zoom ──────────────────────────────────────────────
+           Container kanvas diberi TINGGI TETAP (px) + position:relative, lalu kanvas
+           di-absolute-kan mengisi penuh container. Dikombinasikan dengan
+           maintainAspectRatio:false pada Chart.js, ini menghentikan "feedback loop"
+           resize yang membuat chart menyusut bertahap saat browser di-zoom
+           (80% / 90% / 110% / 125%). Ukuran box tidak lagi bergantung pada ukuran
+           kanvas, sehingga layout stabil di semua level zoom. */
         .cc-body {
             padding: 16px 18px;
+            position: relative;
+            height: 240px;
         }
 
+        /* Biarkan Chart.js (responsive + maintainAspectRatio:false) mengatur ukuran kanvas
+           mengisi container content-box. JANGAN paksa width/height kanvas via CSS — itu justru
+           bertabrakan dgn manajemen ukuran + devicePixelRatio milik Chart.js. Yang penting:
+           container punya TINGGI TETAP (px) sehingga tidak ada feedback-loop saat zoom. */
         .cc-body canvas {
-            max-height: 210px;
+            display: block;
+        }
+
+        /* Kartu chart lebar (Kurva S / Tren) — lebih tinggi. */
+        .cc-body-wide {
+            height: 320px;
         }
 
         .cc-icon {
@@ -2178,10 +2228,48 @@
             grid-template-columns: 1fr;
         }
 
+        /* 3 kartu distribusi (Direktorat / Divisi / Departemen) — auto-fit agar
+           membungkus rapi & responsif tanpa memicu overflow horizontal. */
+        .dist-3col {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
         @media (max-width: 900px) {
             .dist-2col {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* ── Pivot Table Jenis Audit ─────────────────────────────────────────
+           Reuse gaya <table> global; hanya penegasan kolom/baris total & header sortir. */
+        .pivot-table th.th-sort {
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .pivot-table td.pv-num,
+        .pivot-table th.pv-num {
+            text-align: center;
+        }
+
+        .pivot-table .pv-name {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .pivot-table .pv-total,
+        .pivot-table tfoot td {
+            font-weight: 800;
+            background: var(--surface3);
+            color: var(--text);
+        }
+
+        .pivot-table tfoot td {
+            border-top: 2px solid var(--border2);
+        }
+
+        .pivot-zero {
+            color: var(--text3);
         }
 
         .chip {
@@ -2209,6 +2297,11 @@
         .chip-green {
             background: var(--green-light);
             color: var(--green);
+        }
+
+        .chip-purple {
+            background: var(--purple-light);
+            color: var(--purple);
         }
 
         .chip-red {
@@ -2804,12 +2897,17 @@
                 grid-template-columns: 1fr;
             }
 
-            .cc-body canvas {
-                max-height: 180px;
+            .cc-body {
+                height: 220px;
+            }
+
+            .cc-body-wide {
+                height: 250px;
             }
 
             .dist-2col,
-            .dist-1col {
+            .dist-1col,
+            .dist-3col {
                 grid-template-columns: 1fr;
             }
 
@@ -3541,7 +3639,9 @@
                 user: null, allRows: [], filtered: [], stats: null,
                 editIdx: null, delIdx: null, editUser: null, pending: [],
                 page: 1, PAGE: 50, tab: 'dashboard',
-                sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {}
+                sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
+                /* Kurva S: mode sumbu-X ('bulanan' | 'harian'). Pivot: state search & sort. */
+                sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' }
             };
 
             /* Tab Admin: Tidak ada actlog */
@@ -3672,7 +3772,8 @@
                 S = {
                     user: null, allRows: [], filtered: [], stats: null, editIdx: null, delIdx: null,
                     editUser: null, pending: [], page: 1, PAGE: 50, tab: 'dashboard',
-                    sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {}
+                    sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
+                    sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' }
                 };
                 $('app').style.display = 'none'; $('loginPage').style.display = 'flex';
                 $('loginUser').value = ''; $('loginPass').value = ''; hideLoginErr();
@@ -3754,6 +3855,9 @@
                DASHBOARD
             ══════════════════════════════════════ */
             function renderDashboard() {
+                // Selalu destroy chart lama sebelum render ulang — mencegah kebocoran instance
+                // Chart.js (mis. saat ganti filter bulan) yang bisa memicu resize-loop saat zoom.
+                destroyCharts();
                 var isAdmin = isAdminRole(S.user.role);
                 var years = {};
                 S.allRows.forEach(function (r) { var d = r['Due Date']; if (d) { var y = new Date(d).getFullYear(); if (!isNaN(y)) years[y] = 1; } });
@@ -3807,6 +3911,7 @@
                 var statsHtml = '<div class="stats-grid">' +
                     sc('sc-total', '📋', s.total, 'Total Rekomendasi') +
                     sc('sc-open', '🟡', s.open, 'Masih Open') +
+                    sc('sc-proses', '🔄', s.proses, 'Dalam Proses') +   /* status turunan Proses */
                     sc('sc-close', '✅', s.closed, 'Sudah Close') +
                     sc('sc-req', '🔔', s.requestClose, 'Menunggu Approval') +
                     sc('sc-overdue', '⚠️', s.overdue, 'Jumlah Overdue') +
@@ -3818,8 +3923,9 @@
                     '<div style="font-size:12px;color:var(--text3);margin-top:2px;font-weight:500">' + s.closed + ' dari ' + s.total + ' rekomendasi telah ditutup' + (S.dashMonth ? ' — s.d. ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '') : (S.dashYear ? ' — Tahun ' + S.dashYear : '')) +
                     '</div></div><div class="big-prog-pct">' + pct + '<span style="font-size:16px;font-weight:600;opacity:.6">%</span></div></div>' +
                     '<div class="big-prog-bar"><div class="big-prog-fill" style="width:' + pct + '%"></div></div>' +
-                    '<div style="display:flex;gap:20px">' +
+                    '<div style="display:flex;gap:20px;flex-wrap:wrap">' +
                     '<span style="font-size:12px;color:var(--text3);font-weight:500">🟡 Open: ' + s.open + '</span>' +
+                    '<span style="font-size:12px;color:var(--text3);font-weight:500">🔄 Proses: ' + s.proses + '</span>' +
                     '<span style="font-size:12px;color:var(--text3);font-weight:500">✅ Close: ' + s.closed + '</span>' +
                     '<span style="font-size:12px;color:var(--text3);font-weight:500">🔔 Pending Approval: ' + s.requestClose + '</span>' +
                     '</div></div>';
@@ -3828,99 +3934,114 @@
                     ? '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Rekomendasi', 'Proporsi Open vs Close', '') + ccard('chartDir', '🏢', 'Per Direktorat', 'Jumlah rekomendasi', '') + ccard('chartProg', '📈', 'Progres per Direktorat', 'Rata-rata % penyelesaian', '') + '</div>'
                     : '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Divisi', 'Proporsi Open vs Close', '') + ccard('chartDept', '🏬', 'Per Departemen', 'Jumlah rekomendasi', '') + ccard('chartDeptProg', '📈', 'Progres per Departemen', 'Rata-rata % penyelesaian', '') + '</div>';
 
-                // Tren % Close per Bulan — hanya untuk Admin, full-width
-                var trendCardHtml = '';
-                if (isAdmin) {
-                    var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
-                    var tr = trendDirection(td.pct);
-                    trendCardHtml = '<div class="charts-grid charts-1">' +
-                        '<div class="chart-card"><div class="cc-head">' +
-                        '<div><div class="cc-title">📈 Tren % Penyelesaian (Close) per Bulan</div>' +
-                        '<div class="cc-sub">Cumulative — efektivitas tim tindak lanjut dari waktu ke waktu</div></div>' +
-                        '<div style="display:flex;align-items:center;gap:10px"><span class="tr-badge ' + tr.cls + '">' + tr.icon + ' ' + tr.label + '</span><span class="cc-icon">📈</span></div>' +
-                        '</div><div class="cc-body cc-body-wide"><canvas id="chartTrend"></canvas></div></div>' +
-                        '</div>';
-                }
+                // Catatan: chart "Tren % Close per Bulan" (chartTrend) DIHAPUS — redundan dgn
+                // Kurva S di atas (keduanya kurva kumulatif % Close). Kini hanya satu line chart.
+
+                // ── Kurva S (untuk semua role) — full width, dengan dropdown Harian/Bulanan ──
+                var sCurveCard = '<div class="charts-grid charts-1">' +
+                    '<div class="chart-card"><div class="cc-head">' +
+                    '<div><div class="cc-title">📈 Kurva S — Progress Kumulatif Tindak Lanjut</div>' +
+                    '<div class="cc-sub">Akumulasi penyelesaian (Close) terhadap total rekomendasi — mengikuti filter aktif</div></div>' +
+                    '<div style="display:flex;align-items:center;gap:8px">' +
+                    '<select class="mf-year-sel" onchange="setSCurveMode(this.value)" style="min-width:104px" title="Granularitas sumbu waktu">' +
+                    '<option value="bulanan"' + (S.sCurveMode !== 'harian' ? ' selected' : '') + '>Bulanan</option>' +
+                    '<option value="harian"' + (S.sCurveMode === 'harian' ? ' selected' : '') + '>Harian</option>' +
+                    '</select><span class="cc-icon">🧮</span></div>' +
+                    '</div><div class="cc-body cc-body-wide"><canvas id="chartSCurve"></canvas></div></div></div>';
+
+                // ── Pivot Table Jenis Audit (khusus role admin/manajemen — lihat semua departemen) ──
+                var pivotCard = isAdmin
+                    ? '<div class="card" id="pivotCard" style="margin-top:18px"><div class="card-header">' +
+                      '<div><div class="card-title">🧮 Pivot Table — Distribusi Jenis Audit</div>' +
+                      '<div class="card-subtitle">Jumlah temuan per Departemen (baris) × Jenis Audit (kolom) — mengikuti filter aktif</div></div>' +
+                      '<div class="toolbar" style="gap:8px">' +
+                      '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="pivotSearchInput" placeholder="Cari departemen…" value="' + escH(S.pivotSearch || '') + '" oninput="onPivotSearch()" style="width:190px;padding-left:34px"/></div>' +
+                      '<button class="btn btn-primary btn-sm" id="btnExportPivot" onclick="exportPivotExcel()" title="Download pivot table ke Excel">⬇ Export Pivot</button>' +
+                      '</div></div>' +
+                      '<div id="pivotTableWrap"></div></div>'
+                    : '';
 
                 var distSection = buildDistCards(isAdmin, s);
-                showMain(monthFilterHtml + statsHtml + bigProg + chartCols + trendCardHtml + distSection);
+                showMain(monthFilterHtml + statsHtml + bigProg + sCurveCard + chartCols + distSection + pivotCard);
+                if (isAdmin) renderPivotTable();   // isi #pivotTableWrap (tanpa re-render seluruh dashboard)
                 setTimeout(function () { renderCharts(isAdmin, fRows, s); }, 60);
             }
 
-            /* ── Trend data: cumulative % Close per bulan ───────
-               Setiap bulan M:
-                 total[M]  = jumlah rekomendasi dengan Tanggal Laporan <= akhir bulan M
-                 closed[M] = jumlah rekomendasi dengan Status='Close' & Tanggal Close <= akhir bulan M
-                 pct[M]    = closed / total * 100
-               Range bulan:
-                 - dashYear set → Jan..Des dari tahun itu (atau s.d. dashMonth bila set)
-                 - else        → 12 bulan terakhir s.d. bulan saat ini
-            ──────────────────────────────────────────────────── */
-            function buildTrendData(rows, dashYear, dashMonth) {
-                if (!rows || rows.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+            /* Ganti granularitas Kurva S (Harian/Bulanan) — sinkron dengan filter dashboard. */
+            function setSCurveMode(m) { S.sCurveMode = (m === 'harian') ? 'harian' : 'bulanan'; renderDashboard(); }
 
-                var reportedDates = [];
+            /* Catatan: buildTrendData() & trendDirection() DIHAPUS bersama chart Tren lama —
+               digantikan sepenuhnya oleh buildSCurveData() (Kurva S). */
+
+            /* ── Data Kurva S: progress kumulatif (Close) terhadap total ──────────
+               rows  : hasil filter dashboard (filterDashRows) — sudah tersinkron dgn
+                       filter jenis, kategori, bulan/tahun.
+               mode  : 'harian' → bucket per tanggal; 'bulanan' → bucket per akhir bulan.
+               pct[t]= (jumlah rekomendasi Close dgn Tanggal Close ≤ t) / total × 100.
+               Menghasilkan kurva kumulatif monotonik (bentuk S) dari 0% menuju %Close final.
+            ──────────────────────────────────────────────────────────────────── */
+            function buildSCurveData(rows, mode) {
+                var total = rows.length;
+                if (total === 0) return { labels: [], pct: [], cum: [], total: 0 };
+
+                // Kumpulkan tanggal acuan: Tanggal Laporan (awal cakupan) & Tanggal Close (event).
+                var reported = [], closes = [];
                 rows.forEach(function (r) {
-                    if (r['Tanggal Laporan']) {
-                        var d = new Date(r['Tanggal Laporan']);
-                        if (!isNaN(d.getTime())) reportedDates.push(d);
-                    }
+                    if (r['Tanggal Laporan']) { var d = new Date(r['Tanggal Laporan']); if (!isNaN(d.getTime())) reported.push(d); }
+                    if (deriveStatus(r) === 'Close' && r['Tanggal Close']) { var c = new Date(r['Tanggal Close']); if (!isNaN(c.getTime())) closes.push(c); }
                 });
-                if (reportedDates.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+                var anchors = reported.concat(closes);
+                if (anchors.length === 0) return { labels: [], pct: [], cum: [], total: total };
 
+                var startD = new Date(Math.min.apply(null, anchors.map(function (d) { return d.getTime(); })));
+
+                // Akhir rentang mengikuti filter periode dashboard; minimal mencakup Close terakhir & hari ini.
                 var now = new Date();
-                var startD, endD;
-                if (dashYear) {
-                    var y = Number(dashYear);
-                    startD = new Date(y, 0, 1);
-                    var endMonth = dashMonth ? (Number(dashMonth) - 1) : 11;
-                    if (y === now.getFullYear()) endMonth = Math.min(endMonth, now.getMonth());
-                    endD = new Date(y, endMonth, 1);
-                } else {
-                    endD = new Date(now.getFullYear(), now.getMonth(), 1);
-                    startD = new Date(endD); startD.setMonth(startD.getMonth() - 11);
-                    // Tetapi jangan lebih awal dari bulan rekomendasi pertama
-                    var minReported = new Date(Math.min.apply(null, reportedDates.map(function (d) { return d.getTime(); })));
-                    var minMonthStart = new Date(minReported.getFullYear(), minReported.getMonth(), 1);
-                    if (minMonthStart > startD) startD = minMonthStart;
+                var endD;
+                if (S.dashYear && S.dashMonth) endD = new Date(Number(S.dashYear), Number(S.dashMonth), 0, 23, 59, 59);
+                else if (S.dashYear) endD = new Date(Number(S.dashYear), 11, 31, 23, 59, 59);
+                else endD = now;
+                if (closes.length) {
+                    var maxCloseT = Math.max.apply(null, closes.map(function (d) { return d.getTime(); }));
+                    if (maxCloseT > endD.getTime()) endD = new Date(maxCloseT);
                 }
+                if (endD < startD) endD = new Date(startD);
 
-                var buckets = [];
-                var cur = new Date(startD);
-                while (cur <= endD) { buckets.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
-                if (buckets.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+                // Susun bucket waktu.
+                var buckets = []; // { end: Date, label: string }
+                if (mode === 'harian') {
+                    // Batasi maksimal ~366 titik agar tetap ringan pada dataset besar.
+                    var maxStart = new Date(endD); maxStart.setDate(maxStart.getDate() - 365);
+                    if (startD < maxStart) startD = maxStart;
+                    var cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate());
+                    var last = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate());
+                    while (cur <= last) {
+                        var eod = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59);
+                        buckets.push({ end: eod, label: cur.getDate() + ' ' + MONTHS[cur.getMonth()] + " '" + String(cur.getFullYear()).slice(-2) });
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                } else {
+                    var curM = new Date(startD.getFullYear(), startD.getMonth(), 1);
+                    var lastM = new Date(endD.getFullYear(), endD.getMonth(), 1);
+                    while (curM <= lastM) {
+                        var eom = new Date(curM.getFullYear(), curM.getMonth() + 1, 0, 23, 59, 59);
+                        buckets.push({ end: eom, label: MONTHS[curM.getMonth()] + ' ' + String(curM.getFullYear()).slice(-2) });
+                        curM.setMonth(curM.getMonth() + 1);
+                    }
+                }
+                if (buckets.length === 0) return { labels: [], pct: [], cum: [], total: total };
 
-                var labels = [], totalArr = [], closedArr = [], pctArr = [];
-                buckets.forEach(function (m) {
-                    var eom = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59);
-                    var total = 0, closed = 0;
-                    rows.forEach(function (r) {
-                        if (!r['Tanggal Laporan']) return;
-                        var tl = new Date(r['Tanggal Laporan']);
-                        if (isNaN(tl.getTime()) || tl > eom) return;
-                        total++;
-                        if (String(r['Status'] || '') === 'Close' && r['Tanggal Close']) {
-                            var tc = new Date(r['Tanggal Close']);
-                            if (!isNaN(tc.getTime()) && tc <= eom) closed++;
-                        }
-                    });
-                    var pct = total > 0 ? (closed / total * 100) : 0;
-                    labels.push(MONTHS[m.getMonth()] + ' ' + String(m.getFullYear()).slice(-2));
-                    totalArr.push(total); closedArr.push(closed); pctArr.push(+pct.toFixed(1));
+                // Hitung kumulatif Close secara efisien: dua-pointer atas array terurut.
+                var closeTimes = closes.map(function (d) { return d.getTime(); }).sort(function (a, b) { return a - b; });
+                var labels = [], pctArr = [], cumArr = [], ptr = 0;
+                buckets.forEach(function (b) {
+                    var t = b.end.getTime();
+                    while (ptr < closeTimes.length && closeTimes[ptr] <= t) ptr++;
+                    cumArr.push(ptr);
+                    pctArr.push(+((ptr / total) * 100).toFixed(1));
+                    labels.push(b.label);
                 });
-                return { labels: labels, pct: pctArr, closed: closedArr, total: totalArr };
-            }
-
-            /* ── Direction badge: hijau (naik ≥2pp), kuning (±<2pp), merah (turun ≥2pp) ── */
-            function trendDirection(pctArr) {
-                if (!pctArr || pctArr.length < 2) return { label: 'Data belum cukup', cls: 'tr-na', icon: '−' };
-                var last = pctArr[pctArr.length - 1];
-                var prev = pctArr[pctArr.length - 2];
-                var diff = +(last - prev).toFixed(1);
-                if (diff >= 2)  return { label: 'Tren Membaik (+' + diff + ' pp)', cls: 'tr-up',   icon: '▲' };
-                if (diff <= -5) return { label: 'Tren Menurun (' + diff + ' pp)',  cls: 'tr-down', icon: '▼' };
-                if (diff < 0)   return { label: 'Tren Sedikit Turun (' + diff + ' pp)', cls: 'tr-flat', icon: '▽' };
-                return { label: 'Tren Stagnan (' + (diff > 0 ? '+' : '') + diff + ' pp)', cls: 'tr-flat', icon: '−' };
+                return { labels: labels, pct: pctArr, cum: cumArr, total: total };
             }
 
             function filterByKategoriDash(rows) {
@@ -3949,23 +4070,54 @@
                 });
             }
 
+            /* ══════════════════════════════════════
+               STATUS TURUNAN "PROSES"  (reusable)
+               ──────────────────────────────────────
+               Kolom "Status" di sheet hanya menyimpan Open / Close (tidak diubah).
+               "Proses" adalah status turunan untuk TAMPILAN saja:
+                 - Status = Close                → Close
+                 - Status = Open & Progres% > 0  → Proses
+                 - Status = Open & Progres% = 0  → Open
+               Dipakai konsisten di summary card, filter, chart, tabel, detail & export.
+            ══════════════════════════════════════ */
+            function deriveStatus(row) {
+                var st = String((row && row['Status']) || 'Open').trim();
+                if (st === 'Close') return 'Close';
+                var prog = Number(row && row['Progres%']) || 0;
+                return prog > 0 ? 'Proses' : 'Open';
+            }
+            function statusBadgeClass(st) { return st === 'Close' ? 'badge-close' : st === 'Proses' ? 'badge-proses' : 'badge-open'; }
+            function statusBadge(row) { var st = deriveStatus(row); return '<span class="badge ' + statusBadgeClass(st) + '">' + st + '</span>'; }
+
             function buildStatsFrom(rows) {
                 var now = new Date();
-                var overdue = rows.filter(r => { var d = r['Due Date'] ? new Date(r['Due Date']) : null; return d && !isNaN(d) && String(r['Status'] || '') !== 'Close' && d < now; }).length;
-                var byDirDetail = {}, byDeptDetail = {};
+                var overdue = rows.filter(r => { var d = r['Due Date'] ? new Date(r['Due Date']) : null; return d && !isNaN(d) && deriveStatus(r) !== 'Close' && d < now; }).length;
+                var byDirDetail = {}, byDeptDetail = {}, byDivDetail = {};
+                // Akumulasi per grup dgn tiga status turunan (open / proses / closed).
+                function bump(map, key, st) {
+                    if (!map[key]) map[key] = { total: 0, open: 0, proses: 0, closed: 0 };
+                    map[key].total++;
+                    if (st === 'Close') map[key].closed++;
+                    else if (st === 'Proses') map[key].proses++;
+                    else map[key].open++;
+                }
                 rows.forEach(function (r) {
-                    var k = r['Kode Direktorat'] || 'N/A'; if (!byDirDetail[k]) byDirDetail[k] = { total: 0, open: 0, closed: 0 }; byDirDetail[k].total++; String(r['Status'] || '') === 'Close' ? byDirDetail[k].closed++ : byDirDetail[k].open++;
-                    var d = r['Departemen'] || 'N/A'; if (!byDeptDetail[d]) byDeptDetail[d] = { total: 0, open: 0, closed: 0 }; byDeptDetail[d].total++; String(r['Status'] || '') === 'Close' ? byDeptDetail[d].closed++ : byDeptDetail[d].open++;
+                    var st = deriveStatus(r);
+                    bump(byDirDetail, r['Kode Direktorat'] || 'N/A', st);
+                    bump(byDeptDetail, r['Departemen'] || 'N/A', st);
+                    bump(byDivDetail, r['Divisi'] || 'N/A', st);
                 });
-                var byDir = {}, byDept = {};
+                var byDir = {}, byDept = {}, byDiv = {};
                 Object.keys(byDirDetail).forEach(k => byDir[k] = byDirDetail[k].total);
                 Object.keys(byDeptDetail).forEach(k => byDept[k] = byDeptDetail[k].total);
+                Object.keys(byDivDetail).forEach(k => byDiv[k] = byDivDetail[k].total);
+                var open = 0, proses = 0, closed = 0;
+                rows.forEach(function (r) { var st = deriveStatus(r); if (st === 'Close') closed++; else if (st === 'Proses') proses++; else open++; });
                 return {
                     total: rows.length,
-                    open: rows.filter(r => String(r['Status'] || '') !== 'Close').length,
-                    closed: rows.filter(r => String(r['Status'] || '') === 'Close').length,
-                    requestClose: rows.filter(r => String(r['Request Close'] || '') === 'Ya' && String(r['Status'] || '') !== 'Close').length,
-                    overdue, byDir, byDept, byDirDetail, byDeptDetail
+                    open: open, proses: proses, closed: closed,
+                    requestClose: rows.filter(r => String(r['Request Close'] || '') === 'Ya' && deriveStatus(r) !== 'Close').length,
+                    overdue, byDir, byDept, byDiv, byDirDetail, byDeptDetail, byDivDetail
                 };
             }
 
@@ -3995,6 +4147,7 @@
                     ? ' — s.d. ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '')
                     : (S.dashYear ? ' — Tahun ' + S.dashYear : '');
                 function distRows(detail) {
+                    // Kolom Proses (ungu) ditambahkan di antara Open & Close.
                     return Object.entries(detail).sort((a, b) => b[1].total - a[1].total).map(function (e) {
                         var k = e[0], v = e[1], pct = v.total > 0 ? +(v.closed / v.total * 100).toFixed(0) : 0;
                         var fc = pct >= 80 ? 'pct-fill-hi' : pct >= 50 ? 'pct-fill-md' : 'pct-fill-lo';
@@ -4002,17 +4155,117 @@
                         return '<tr><td><strong style="font-size:13px">' + escH(k) + '</strong></td>' +
                             '<td><span class="chip chip-blue">' + v.total + '</span></td>' +
                             '<td><span class="chip chip-amber">' + v.open + '</span></td>' +
+                            '<td><span class="chip chip-purple">' + (v.proses || 0) + '</span></td>' +
                             '<td><span class="chip chip-green">' + v.closed + '</span></td>' +
                             '<td><div class="pct-bar-wrap"><div class="pct-bar"><div class="' + fc + '" style="width:' + pct + '%"></div></div>' +
                             '<span class="pct-num ' + nc + '">' + pct + '%</span></div></td></tr>';
-                    }).join('') || '<tr><td colspan="5"><div class="empty"><p>Tidak ada data</p></div></td></tr>';
+                    }).join('') || '<tr><td colspan="6"><div class="empty"><p>Tidak ada data</p></div></td></tr>';
                 }
-                var thead = '<thead><tr><th style="min-width:130px">Nama</th><th>Total</th><th>Open</th><th>Close</th><th style="min-width:130px">% Selesai</th></tr></thead>';
+                var thead = '<thead><tr><th style="min-width:130px">Nama</th><th>Total</th><th>Open</th><th>Proses</th><th>Close</th><th style="min-width:130px">% Selesai</th></tr></thead>';
                 var cardDir = '<div class="card"><div class="card-header"><div><div class="card-title">🏢 Distribusi per Direktorat</div><div class="card-subtitle">Rekapitulasi tiap direktorat' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDirDetail) + '</tbody></table></div></div>';
+                var cardDiv = '<div class="card"><div class="card-header"><div><div class="card-title">🏛️ Distribusi per Divisi</div><div class="card-subtitle">Rekapitulasi tiap divisi' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDivDetail) + '</tbody></table></div></div>';
                 var cardDept = '<div class="card"><div class="card-header"><div><div class="card-title">🏬 Distribusi per Departemen</div><div class="card-subtitle">Rekapitulasi tiap departemen' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDeptDetail) + '</tbody></table></div></div>';
                 return isAdmin
-                    ? '<div class="dist-grid dist-2col" style="margin-top:0">' + cardDir + cardDept + '</div>'
+                    ? '<div class="dist-grid dist-3col" style="margin-top:0">' + cardDir + cardDiv + cardDept + '</div>'
                     : '<div class="dist-grid dist-1col" style="margin-top:0">' + cardDept + '</div>';
+            }
+
+            /* ══════════════════════════════════════
+               PIVOT TABLE — Departemen (baris) × Jenis Audit (kolom)
+               ──────────────────────────────────────
+               Mengikuti filter dashboard (filterDashRows). Mendukung search departemen,
+               sorting (klik header), total baris & kolom, serta export ke Excel.
+               Di-render ke #pivotTableWrap agar input search tidak kehilangan fokus.
+            ══════════════════════════════════════ */
+            function buildPivotModel(rows) {
+                var jenisSet = {};
+                rows.forEach(function (r) { var j = String(r['Jenis Pemeriksaan'] || '').trim() || '(Tidak Ada)'; jenisSet[j] = 1; });
+                var cols = Object.keys(jenisSet).sort();
+                var matrix = {}, colTotals = {}, grand = 0;
+                cols.forEach(function (c) { colTotals[c] = 0; });
+                rows.forEach(function (r) {
+                    var dept = String(r['Departemen'] || '').trim() || '(Tidak Ada)';
+                    var j = String(r['Jenis Pemeriksaan'] || '').trim() || '(Tidak Ada)';
+                    if (!matrix[dept]) { matrix[dept] = { __total: 0 }; cols.forEach(function (c) { matrix[dept][c] = 0; }); }
+                    matrix[dept][j] = (matrix[dept][j] || 0) + 1;
+                    matrix[dept].__total++;
+                    colTotals[j]++; grand++;
+                });
+                return { cols: cols, matrix: matrix, colTotals: colTotals, grand: grand };
+            }
+
+            function getPivotSortedDepts(model) {
+                var depts = Object.keys(model.matrix);
+                var q = String(S.pivotSearch || '').trim().toLowerCase();
+                if (q) depts = depts.filter(function (d) { return d.toLowerCase().indexOf(q) >= 0; });
+                var sk = S.pivotSort.key, mul = S.pivotSort.dir === 'asc' ? 1 : -1;
+                depts.sort(function (a, b) {
+                    if (sk === '__nama') return a.localeCompare(b) * mul;
+                    var va = sk === '__total' ? model.matrix[a].__total : (model.matrix[a][sk] || 0);
+                    var vb = sk === '__total' ? model.matrix[b].__total : (model.matrix[b][sk] || 0);
+                    if (va === vb) return a.localeCompare(b);
+                    return (va - vb) * mul;
+                });
+                return depts;
+            }
+
+            function renderPivotTable() {
+                var wrap = document.getElementById('pivotTableWrap');
+                if (!wrap) return;
+                var model = buildPivotModel(filterDashRows());
+                if (model.cols.length === 0 || model.grand === 0) {
+                    wrap.innerHTML = '<div class="empty" style="padding:32px"><div class="empty-icon">🧮</div><p>Tidak ada data untuk filter saat ini</p></div>';
+                    return;
+                }
+                var depts = getPivotSortedDepts(model);
+
+                function sIcon(key) {
+                    if (S.pivotSort.key !== key) return '↕';
+                    return S.pivotSort.dir === 'asc' ? '↑' : '↓';
+                }
+                function sCls(key) { return S.pivotSort.key === key ? (' ' + S.pivotSort.dir) : ''; }
+
+                // Header: Departemen | (tiap jenis) | Total
+                var thead = '<thead><tr>' +
+                    '<th class="th-sort pv-name' + sCls('__nama') + '" onclick="setPivotSort(\'__nama\')" style="min-width:160px">Departemen <span class="th-sort-icon">' + sIcon('__nama') + '</span></th>' +
+                    model.cols.map(function (c) {
+                        return '<th class="th-sort pv-num' + sCls(c) + '" onclick="setPivotSort(\'' + escJs(c) + '\')">' + escH(c) + ' <span class="th-sort-icon">' + sIcon(c) + '</span></th>';
+                    }).join('') +
+                    '<th class="th-sort pv-num pv-total' + sCls('__total') + '" onclick="setPivotSort(\'__total\')">Total <span class="th-sort-icon">' + sIcon('__total') + '</span></th>' +
+                    '</tr></thead>';
+
+                var tbody = depts.length === 0
+                    ? '<tr><td colspan="' + (model.cols.length + 2) + '"><div class="empty"><p>Tidak ada departemen cocok dengan pencarian</p></div></td></tr>'
+                    : depts.map(function (d) {
+                        var cells = model.cols.map(function (c) {
+                            var val = model.matrix[d][c] || 0;
+                            return '<td class="pv-num' + (val === 0 ? ' pivot-zero' : '') + '">' + val + '</td>';
+                        }).join('');
+                        return '<tr><td class="pv-name">' + escH(d) + '</td>' + cells + '<td class="pv-num pv-total">' + model.matrix[d].__total + '</td></tr>';
+                    }).join('');
+
+                // Footer: total per kolom + grand total
+                var tfoot = '<tfoot><tr><td class="pv-name">Total</td>' +
+                    model.cols.map(function (c) { return '<td class="pv-num">' + model.colTotals[c] + '</td>'; }).join('') +
+                    '<td class="pv-num">' + model.grand + '</td></tr></tfoot>';
+
+                wrap.innerHTML = '<div class="table-scroll"><table class="pivot-table">' + thead + '<tbody>' + tbody + '</tbody>' + tfoot + '</table></div>';
+            }
+
+            function onPivotSearch() {
+                var el = document.getElementById('pivotSearchInput');
+                S.pivotSearch = el ? el.value : '';
+                renderPivotTable();
+            }
+            function setPivotSort(key) {
+                if (S.pivotSort.key === key) {
+                    S.pivotSort.dir = S.pivotSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    S.pivotSort.key = key;
+                    // Default: nama → asc; kolom angka → desc (yang terbesar dulu).
+                    S.pivotSort.dir = key === '__nama' ? 'asc' : 'desc';
+                }
+                renderPivotTable();
             }
 
             function sc(cls, icon, val, lbl) { return '<div class="stat-card ' + cls + '"><div class="stat-icon-wrap">' + icon + '</div><div class="stat-number">' + val + '</div><div class="stat-label">' + lbl + '</div></div>'; }
@@ -4021,94 +4274,69 @@
             function destroyCharts() { Object.values(S.charts).forEach(c => { try { c.destroy(); } catch (e) { } }); S.charts = {}; }
 
             function renderCharts(isAdmin, rows, s) {
-                var TJ = '#0066B3', TJM = '#3D8FCC', GRN = '#059669', AMB = '#D97706', RED = '#E31D28', GRID = 'rgba(0,0,0,.05)';
+                var TJ = '#0066B3', TJM = '#3D8FCC', GRN = '#059669', AMB = '#D97706', RED = '#E31D28', PUR = '#7C3AED', GRID = 'rgba(0,0,0,.05)';
                 var FONT = { family: "'Plus Jakarta Sans', sans-serif", size: 11, weight: '600' };
                 Chart.defaults.font = FONT; Chart.defaults.color = '#78716C';
+                // maintainAspectRatio:false di SEMUA chart → kanvas mengisi container ber-tinggi tetap
+                // (lihat .cc-body di CSS). Ini kunci perbaikan bug shrink saat browser di-zoom.
 
+                // Donut kini 3 segmen: Open / Proses / Close (status turunan).
                 var doEl = document.getElementById('chartDonut');
-                if (doEl) S.charts.donut = new Chart(doEl, { type: 'doughnut', data: { labels: ['Open', 'Close'], datasets: [{ data: [s.open, s.closed], backgroundColor: [AMB, GRN], borderColor: ['#FEF3C7', '#D1FAE5'], borderWidth: 3, hoverOffset: 8 }] }, options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } }, tooltip: { callbacks: { label: ctx => { var p = s.total > 0 ? (ctx.parsed / s.total * 100).toFixed(1) : 0; return '  ' + ctx.label + ': ' + ctx.parsed + ' (' + p + '%)'; } } } } } });
+                if (doEl) S.charts.donut = new Chart(doEl, { type: 'doughnut', data: { labels: ['Open', 'Proses', 'Close'], datasets: [{ data: [s.open, s.proses, s.closed], backgroundColor: [AMB, PUR, GRN], borderColor: ['#FEF3C7', '#EDE9FE', '#D1FAE5'], borderWidth: 3, hoverOffset: 8 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } }, tooltip: { callbacks: { label: ctx => { var p = s.total > 0 ? (ctx.parsed / s.total * 100).toFixed(1) : 0; return '  ' + ctx.label + ': ' + ctx.parsed + ' (' + p + '%)'; } } } } } });
+
+                // ─── Kurva S (semua role): line chart kumulatif % Close mengikuti filter ───
+                var scEl = document.getElementById('chartSCurve');
+                if (scEl) {
+                    var sd = buildSCurveData(filterDashRows(), S.sCurveMode);
+                    if (sd.labels.length > 0) {
+                        var sctx = scEl.getContext('2d');
+                        var sgrad = sctx.createLinearGradient(0, 0, 0, 300);
+                        sgrad.addColorStop(0, 'rgba(124, 58, 237, .22)');
+                        sgrad.addColorStop(1, 'rgba(124, 58, 237, .00)');
+                        // Titik dijaga tetap ringan: sembunyikan marker bila bucket banyak (mode harian).
+                        var manyPts = sd.labels.length > 40;
+                        S.charts.scurve = new Chart(scEl, {
+                            type: 'line',
+                            data: { labels: sd.labels, datasets: [{ label: '% Kumulatif Close', data: sd.pct, borderColor: PUR, backgroundColor: sgrad, borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: manyPts ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: PUR, pointBorderWidth: 2 }] },
+                            options: {
+                                responsive: true, maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(28,25,23,.95)', titleColor: '#fff', bodyColor: '#fff', padding: 12, cornerRadius: 8, boxPadding: 4,
+                                        callbacks: {
+                                            title: function (items) { return items.length ? items[0].label : ''; },
+                                            label: function (ctx) {
+                                                var i = ctx.dataIndex;
+                                                return ['  📈 Progress : ' + sd.pct[i] + '%', '  ✅ Close    : ' + sd.cum[i] + ' / ' + sd.total + ' rekomendasi'];
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: { grid: { color: GRID, display: false }, ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: manyPts ? 12 : 16 } },
+                                    y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: function (v) { return v + '%'; }, stepSize: 20, font: { size: 10 } }, title: { display: true, text: '% Progress Kumulatif', font: { size: 10, weight: 700 }, color: '#78716C', padding: { bottom: 6 } } }
+                                }
+                            }
+                        });
+                    } else {
+                        // Tidak ada tanggal acuan → tampilkan pesan kosong di dalam kartu.
+                        var wrapc = scEl.parentElement;
+                        if (wrapc) wrapc.innerHTML = '<div class="empty" style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="empty-icon">📈</div><p>Belum ada data tanggal untuk membentuk Kurva S</p></div>';
+                    }
+                }
 
                 if (isAdmin) {
                     var dirEl = document.getElementById('chartDir');
-                    if (dirEl && s.byDir) { var dk = Object.keys(s.byDir).sort((a, b) => s.byDir[b] - s.byDir[a]).slice(0, 10); var dv = dk.map(k => s.byDir[k]); S.charts.dir = new Chart(dirEl, { type: 'bar', data: { labels: dk, datasets: [{ label: 'Rekomendasi', data: dv, backgroundColor: dv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
+                    if (dirEl && s.byDir) { var dk = Object.keys(s.byDir).sort((a, b) => s.byDir[b] - s.byDir[a]).slice(0, 10); var dv = dk.map(k => s.byDir[k]); S.charts.dir = new Chart(dirEl, { type: 'bar', data: { labels: dk, datasets: [{ label: 'Rekomendasi', data: dv, backgroundColor: dv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
                     var prEl = document.getElementById('chartProg');
-                    if (prEl) { var pm = {}, cm = {}; rows.forEach(r => { var d = r['Kode Direktorat'] || 'N/A'; pm[d] = (pm[d] || 0) + (Number(r['Progres%']) || 0); cm[d] = (cm[d] || 0) + 1; }); var pk = Object.keys(pm).sort((a, b) => (pm[b] / cm[b]) - (pm[a] / cm[a])).slice(0, 8); var pv = pk.map(k => +(pm[k] / cm[k]).toFixed(0)); S.charts.prog = new Chart(prEl, { type: 'bar', data: { labels: pk, datasets: [{ label: 'Avg Progres%', data: pv, backgroundColor: pv.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
-
-                    // ─── Line Chart: Tren % Close per Bulan (cumulative) ───
-                    var trEl = document.getElementById('chartTrend');
-                    if (trEl) {
-                        var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
-                        if (td.labels.length > 0) {
-                            var ctx = trEl.getContext('2d');
-                            // Gradient fill di bawah garis — tone biru lembut, konsisten tema
-                            var grad = ctx.createLinearGradient(0, 0, 0, 260);
-                            grad.addColorStop(0, 'rgba(0, 102, 179, .22)');
-                            grad.addColorStop(1, 'rgba(0, 102, 179, .00)');
-                            S.charts.trend = new Chart(trEl, {
-                                type: 'line',
-                                data: {
-                                    labels: td.labels,
-                                    datasets: [{
-                                        label: '% Close',
-                                        data: td.pct,
-                                        borderColor: TJ,
-                                        backgroundColor: grad,
-                                        borderWidth: 2.5,
-                                        tension: 0.4,
-                                        fill: true,
-                                        pointRadius: 4,
-                                        pointHoverRadius: 6,
-                                        pointBackgroundColor: '#fff',
-                                        pointBorderColor: TJ,
-                                        pointBorderWidth: 2,
-                                        pointHoverBackgroundColor: TJ,
-                                        pointHoverBorderColor: '#fff',
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    interaction: { mode: 'index', intersect: false },
-                                    plugins: {
-                                        legend: { display: false },
-                                        tooltip: {
-                                            backgroundColor: 'rgba(28,25,23,.95)',
-                                            titleColor: '#fff',
-                                            bodyColor: '#fff',
-                                            padding: 12,
-                                            cornerRadius: 8,
-                                            boxPadding: 4,
-                                            callbacks: {
-                                                title: function (items) { return items.length ? 'Bulan ' + items[0].label : ''; },
-                                                label: function (ctx) {
-                                                    var i = ctx.dataIndex;
-                                                    return [
-                                                        '  ✅ Close       : ' + td.closed[i] + ' rekomendasi',
-                                                        '  📋 Total       : ' + td.total[i] + ' rekomendasi',
-                                                        '  📈 % Close     : ' + td.pct[i] + '%',
-                                                    ];
-                                                }
-                                            }
-                                        }
-                                    },
-                                    scales: {
-                                        x: { grid: { color: GRID, display: false }, ticks: { font: { size: 10 } } },
-                                        y: {
-                                            min: 0, max: 100,
-                                            grid: { color: GRID },
-                                            ticks: { callback: function (v) { return v + '%'; }, stepSize: 20, font: { size: 10 } },
-                                            title: { display: true, text: '% Rekomendasi Close', font: { size: 10, weight: 700 }, color: '#78716C', padding: { bottom: 6 } },
-                                        }
-                                    },
-                                }
-                            });
-                        }
-                    }
+                    if (prEl) { var pm = {}, cm = {}; rows.forEach(r => { var d = r['Kode Direktorat'] || 'N/A'; pm[d] = (pm[d] || 0) + (Number(r['Progres%']) || 0); cm[d] = (cm[d] || 0) + 1; }); var pk = Object.keys(pm).sort((a, b) => (pm[b] / cm[b]) - (pm[a] / cm[a])).slice(0, 8); var pv = pk.map(k => +(pm[k] / cm[k]).toFixed(0)); S.charts.prog = new Chart(prEl, { type: 'bar', data: { labels: pk, datasets: [{ label: 'Avg Progres%', data: pv, backgroundColor: pv.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
                 } else {
                     var dptEl = document.getElementById('chartDept');
-                    if (dptEl && s.byDept) { var dpk = Object.keys(s.byDept).sort((a, b) => s.byDept[b] - s.byDept[a]); var dpv = dpk.map(k => s.byDept[k]); S.charts.dept = new Chart(dptEl, { type: 'bar', data: { labels: dpk, datasets: [{ label: 'Rekomendasi', data: dpv, backgroundColor: dpv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
+                    if (dptEl && s.byDept) { var dpk = Object.keys(s.byDept).sort((a, b) => s.byDept[b] - s.byDept[a]); var dpv = dpk.map(k => s.byDept[k]); S.charts.dept = new Chart(dptEl, { type: 'bar', data: { labels: dpk, datasets: [{ label: 'Rekomendasi', data: dpv, backgroundColor: dpv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
                     var dppEl = document.getElementById('chartDeptProg');
-                    if (dppEl) { var pm2 = {}, cm2 = {}; rows.forEach(r => { var d = r['Departemen'] || 'N/A'; pm2[d] = (pm2[d] || 0) + (Number(r['Progres%']) || 0); cm2[d] = (cm2[d] || 0) + 1; }); var pk2 = Object.keys(pm2).sort((a, b) => (pm2[b] / cm2[b]) - (pm2[a] / cm2[a])); var pv2 = pk2.map(k => +(pm2[k] / cm2[k]).toFixed(0)); S.charts.deptProg = new Chart(dppEl, { type: 'bar', data: { labels: pk2, datasets: [{ label: 'Avg Progres%', data: pv2, backgroundColor: pv2.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
+                    if (dppEl) { var pm2 = {}, cm2 = {}; rows.forEach(r => { var d = r['Departemen'] || 'N/A'; pm2[d] = (pm2[d] || 0) + (Number(r['Progres%']) || 0); cm2[d] = (cm2[d] || 0) + 1; }); var pk2 = Object.keys(pm2).sort((a, b) => (pm2[b] / cm2[b]) - (pm2[a] / cm2[a])); var pv2 = pk2.map(k => +(pm2[k] / cm2[k]).toFixed(0)); S.charts.deptProg = new Chart(dppEl, { type: 'bar', data: { labels: pk2, datasets: [{ label: 'Avg Progres%', data: pv2, backgroundColor: pv2.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
                 }
             }
 
@@ -4139,15 +4367,19 @@
                 katF = katF !== undefined ? katF : getFV('fltKategori');
 
                 var isAdmin = isAdminRole(S.user.role), ql = q.toLowerCase();
-                // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel.
-                // Status filter dropdown juga di-kunci ke 'Open' untuk PIC (lihat di bawah).
-                if (!isAdmin) stF = 'Open';
+                // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel — sembunyikan
+                // baris ber-status turunan 'Close' (Open & Proses tetap tampil). PIC tidak punya
+                // dropdown status, jadi stF diabaikan untuk PIC.
+                var hideClose = !isAdmin;
+                if (hideClose) stF = '';
                 S.tableKategori = katF || null;
                 var jenisSel = S.tableJenis || [];
+                // Filter status memakai STATUS TURUNAN (deriveStatus) → mendukung nilai 'Proses'.
                 S.filtered = S.allRows.filter(function (r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
                     var jOk = jenisSel.length === 0 || jenisSel.indexOf(String(r['Jenis Pemeriksaan'] || '')) >= 0;
-                    return m && jOk && (!stF || String(r['Status'] || '') === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
+                    var dSt = deriveStatus(r);
+                    return m && jOk && (!hideClose || dSt !== 'Close') && (!stF || dSt === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
                 });
                 if (S.sortBy && S.sortDir) {
                     var dirMul = S.sortDir === 'asc' ? 1 : -1;
@@ -4225,7 +4457,7 @@
                         '<td>' + escH(r['Divisi'] || '') + '<div style="font-size:11px;color:var(--text3)">' + escH(r['Departemen'] || '') + '</div></td>' +
                         '<td><div class="prog-wrap" style="min-width:90px"><div class="prog-bar"><div class="prog-fill" style="width:' + prog + '%"></div></div><span class="prog-val">' + prog + '%</span></div></td>' +
                         '<td><span class="badge ' + (rc === 'Ya' ? 'badge-ya' : 'badge-belum') + '">' + escH(rc) + '</span></td>' +
-                        '<td><span class="badge ' + (st === 'Close' ? 'badge-close' : 'badge-open') + '">' + escH(st || 'Open') + '</span></td>' +
+                        '<td>' + statusBadge(r) + '</td>' +   /* badge status turunan (Open/Proses/Close) */
                         '<td><span class="mono" style="font-size:11px;color:var(--text3)">' + (r['Tanggal Close'] ? fmtDate(r['Tanggal Close']) : '—') + '</span></td>' +
                         '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (canEdit(S.user.role) ? '<button class="btn btn-subtle btn-xs" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-xs" onclick="event.stopPropagation();approveClose(' + ri + ')">✓</button>' : '') + '<button class="btn btn-red btn-xs" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : (isAdmin ? '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍</button>' : '<button class="btn btn-amber btn-xs" onclick="event.stopPropagation();openPICEdit(' + ri + ')">Update</button>')) + '</div></td></tr>';
                 }).join('');
@@ -4234,7 +4466,7 @@
                     var st = String(r['Status'] || '').trim(), rc = String(r['Request Close'] || 'Belum').trim(), prog = +(r['Progres%']) || 0;
                     var due = r['Due Date'] ? new Date(r['Due Date']) : null, over = due && !isNaN(due) && st !== 'Close' && due < new Date(), ri = r._rowIndex;
                     return '<div class="dc' + (over ? ' dc-overdue' : '') + '" onclick="openDetail(' + ri + ')">' +
-                        '<div class="dc-head"><span class="dc-no">#' + escH(String(r['No'] || '')) + '</span><div class="dc-meta"><div class="dc-judul">' + escH(r['Judul Audit'] || '') + '</div><div class="dc-tags"><span class="tag">' + escH(r['Jenis Pemeriksaan'] || '') + '</span>' + (over ? '<span style="background:var(--tj-red-light);color:var(--tj-red);border:1px solid rgba(227,29,40,.2);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:700">⚠ Overdue</span>' : '') + '</div></div><span class="badge ' + (st === 'Close' ? 'badge-close' : 'badge-open') + '" style="flex-shrink:0">' + escH(st || 'Open') + '</span></div>' +
+                        '<div class="dc-head"><span class="dc-no">#' + escH(String(r['No'] || '')) + '</span><div class="dc-meta"><div class="dc-judul">' + escH(r['Judul Audit'] || '') + '</div><div class="dc-tags"><span class="tag">' + escH(r['Jenis Pemeriksaan'] || '') + '</span>' + (over ? '<span style="background:var(--tj-red-light);color:var(--tj-red);border:1px solid rgba(227,29,40,.2);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:700">⚠ Overdue</span>' : '') + '</div></div><span class="badge ' + statusBadgeClass(deriveStatus(r)) + '" style="flex-shrink:0">' + deriveStatus(r) + '</span></div>' +
                         '<div class="dc-body"><div class="dc-rek">' + escH(r['Rekomendasi'] || '') + '</div><div class="dc-row2"><div class="dc-field"><span class="dc-field-lbl">🏢 Divisi</span><span class="dc-field-val">' + escH(r['Divisi'] || '—') + '</span></div><div class="dc-field"><span class="dc-field-lbl">🏬 Departemen</span><span class="dc-field-val">' + escH(r['Departemen'] || '—') + '</span></div><div class="dc-field"><span class="dc-field-lbl">📅 Due Date</span><span class="dc-field-val" style="' + (over ? 'color:var(--red);font-weight:700' : '') + '">' + fmtDate(r['Due Date']) + '</span></div><div class="dc-field"><span class="dc-field-lbl">🔔 Req. Close</span><span class="dc-field-val"><span class="badge ' + (rc === 'Ya' ? 'badge-ya' : 'badge-belum') + '">' + escH(rc) + '</span></span></div></div><div class="dc-prog-row"><div class="prog-wrap"><div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:' + prog + '%"></div></div><span class="prog-val">' + prog + '%</span></div></div></div>' +
                         '<div class="dc-foot"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍 Detail</button>' + (canEdit(S.user.role) ? '<button class="btn btn-subtle btn-sm" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️ Edit</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="event.stopPropagation();approveClose(' + ri + ')">✓ Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : (isAdmin ? '' : '<button class="btn btn-amber btn-sm" onclick="event.stopPropagation();openPICEdit(' + ri + ')">✏️ Update</button>')) + '</div></div>';
                 }).join('');
@@ -4250,7 +4482,7 @@
                     '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
                     '<div class="toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
-                    (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
+                    (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
                     '<select id="fltKategori" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
@@ -4264,7 +4496,7 @@
                     '<div class="filter-toggle-bar"><button class="filter-toggle-btn' + ftbCls + '" onclick="toggleFilterPanel()">🔽 Filter' + ftbBadge + '</button><button class="btn btn-ghost btn-sm" onclick="mobileSearch()" style="flex-shrink:0">🔍</button></div>' +
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
-                    (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
+                    (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
                     '<select id="m_fltKategori" onchange="applyFilter()"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
@@ -4428,7 +4660,7 @@
                     ['Kode Direktorat', row['Kode Direktorat'] ? '<span class="chip chip-blue">' + escH(row['Kode Direktorat']) + '</span>' : '—'],
                     ['Divisi', escH(row['Divisi'] || '—')], ['Departemen', escH(row['Departemen'] || '—')],
                     ['Due Date', '<span style="font-weight:700;' + (due ? 'color:#9B1C1C' : 'color:var(--text2)') + '">' + fmtDate(row['Due Date']) + '</span>' + (due ? '&ensp;<span class="overdue-tag" style="font-size:10px;padding:2px 7px">⚠ OVERDUE</span>' : '')],
-                    ['Status', '<span class="badge ' + (row['Status'] === 'Close' ? 'badge-close' : 'badge-open') + '">' + escH(row['Status'] || 'Open') + '</span>'],
+                    ['Status', statusBadge(row)],   /* status turunan (Open/Proses/Close) */
                     ['Temuan Pemeriksaan', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Temuan Pemeriksaan'] || '—') + '</div>'],
                     ['Rekomendasi', '<div class="cell-pre" style="background:var(--tj-blue-pale);border:1px solid rgba(0,102,179,.15);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text)">' + escH(row['Rekomendasi'] || '—') + '</div>'],
                     ['Tindak Lanjut', '<div class="cell-pre" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--text2)">' + escH(row['Tindak Lanjut'] || '—') + '</div>'],
@@ -4469,7 +4701,7 @@
                 var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; }
                 S.delIdx = ri;
                 var rek = String(row['Rekomendasi'] || '').substring(0, 100) + (String(row['Rekomendasi'] || '').length > 100 ? '…' : '');
-                $('delDetail').innerHTML = cr('No', '<strong>' + escH(String(row['No'] || '—')) + '</strong>') + cr('Judul', escH(row['Judul Audit'] || '—')) + cr('Rekomendasi', escH(rek)) + cr('Divisi', escH(row['Divisi'] || '—')) + cr('Status', '<span class="badge ' + (row['Status'] === 'Close' ? 'badge-close' : 'badge-open') + '">' + escH(row['Status'] || 'Open') + '</span>');
+                $('delDetail').innerHTML = cr('No', '<strong>' + escH(String(row['No'] || '—')) + '</strong>') + cr('Judul', escH(row['Judul Audit'] || '—')) + cr('Rekomendasi', escH(rek)) + cr('Divisi', escH(row['Divisi'] || '—')) + cr('Status', statusBadge(row));
                 $('delInput').value = ''; $('delInput').className = ''; $('btnDel').disabled = true; openModal('mDel');
             }
             function onDelType() { var v = $('delInput').value; $('delInput').className = v === 'HAPUS' ? 'valid' : ''; $('btnDel').disabled = v !== 'HAPUS'; }
@@ -4729,15 +4961,17 @@
                 ensureExcelJS().then(function (ExcelJSLib) {
                     var src = filterDashRows();
 
-                    // Agregasi per (Departemen, Divisi)
+                    // Agregasi per (Departemen, Divisi) — dgn status turunan (open/proses/closed).
                     var grp = {};
                     src.forEach(function (r) {
                         var dept = String(r['Departemen'] || '—');
                         var div  = String(r['Divisi'] || '—');
                         var key  = dept + ' ||| ' + div;
-                        if (!grp[key]) grp[key] = { dept: dept, div: div, total: 0, open: 0, closed: 0 };
+                        if (!grp[key]) grp[key] = { dept: dept, div: div, total: 0, open: 0, proses: 0, closed: 0 };
                         grp[key].total++;
-                        if (String(r['Status'] || '') === 'Close') grp[key].closed++;
+                        var st = deriveStatus(r);
+                        if (st === 'Close') grp[key].closed++;
+                        else if (st === 'Proses') grp[key].proses++;
                         else grp[key].open++;
                     });
                     var rows = Object.values(grp).sort(function (a, b) {
@@ -4746,8 +4980,8 @@
                     });
 
                     var sumT = src.length;
-                    var sumC = src.filter(function (r) { return String(r['Status'] || '') === 'Close'; }).length;
-                    var sumO = sumT - sumC;
+                    var sumC = 0, sumPr = 0, sumO = 0;
+                    src.forEach(function (r) { var st = deriveStatus(r); if (st === 'Close') sumC++; else if (st === 'Proses') sumPr++; else sumO++; });
                     var sumPct = sumT > 0 ? (sumC / sumT) : 0;
 
                     var wb = new ExcelJSLib.Workbook();
@@ -4756,7 +4990,7 @@
                     var ws = wb.addWorksheet('Rekap Distribusi');
 
                     // Title
-                    ws.mergeCells('A1:F1');
+                    ws.mergeCells('A1:G1');
                     var c1 = ws.getCell('A1');
                     c1.value = 'Rekap Distribusi Tindak Lanjut Audit';
                     c1.font = { bold: true, size: 14, color: { argb: 'FF0066B3' } };
@@ -4764,7 +4998,7 @@
                     ws.getRow(1).height = 22;
 
                     // Periode
-                    ws.mergeCells('A2:F2');
+                    ws.mergeCells('A2:G2');
                     var c2 = ws.getCell('A2');
                     c2.value = 'Periode: ' + periodLabelHuman() + '  •  Tanggal Export: ' + fmtDDMMYYYY(new Date());
                     c2.font = { italic: true, size: 10, color: { argb: 'FF57534E' } };
@@ -4775,7 +5009,7 @@
                     var sumLbl = ws.addRow(['Ringkasan Keseluruhan']);
                     sumLbl.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF1C1917' } };
 
-                    var sumHdr = ws.addRow(['Total Temuan', 'Total Close', 'Total Open', '% Close Keseluruhan']);
+                    var sumHdr = ws.addRow(['Total Temuan', 'Total Open', 'Total Proses', 'Total Close', '% Close Keseluruhan']);
                     sumHdr.height = 20;
                     sumHdr.eachCell(function (cell) {
                         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -4783,19 +5017,19 @@
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
                         cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
                     });
-                    var sumRow = ws.addRow([sumT, sumC, sumO, sumPct]);
+                    var sumRow = ws.addRow([sumT, sumO, sumPr, sumC, sumPct]);
                     sumRow.eachCell(function (cell) {
                         cell.alignment = { horizontal: 'center' };
                         cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
                     });
-                    sumRow.getCell(4).numFmt = '0.00%';
-                    sumRow.getCell(4).font = { bold: true, color: { argb: sumPct >= 0.8 ? 'FF059669' : sumPct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
+                    sumRow.getCell(5).numFmt = '0.00%';
+                    sumRow.getCell(5).font = { bold: true, color: { argb: sumPct >= 0.8 ? 'FF059669' : sumPct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
 
                     ws.addRow([]); // blank
                     ws.addRow([]); // blank
 
-                    // Detail header (kolom A..F)
-                    var detHdr = ws.addRow(['Departemen', 'Divisi', 'Total Temuan', 'Jumlah Open', 'Jumlah Close', '% Close']);
+                    // Detail header (kolom A..G) — kolom "Jumlah Proses" ditambahkan.
+                    var detHdr = ws.addRow(['Departemen', 'Divisi', 'Total Temuan', 'Jumlah Open', 'Jumlah Proses', 'Jumlah Close', '% Close']);
                     detHdr.height = 22;
                     detHdr.eachCell(function (cell) {
                         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -4805,21 +5039,22 @@
                     });
 
                     if (rows.length === 0) {
-                        var empty = ws.addRow(['Tidak ada data untuk filter saat ini', '', '', '', '', '']);
-                        ws.mergeCells('A' + empty.number + ':F' + empty.number);
+                        var empty = ws.addRow(['Tidak ada data untuk filter saat ini', '', '', '', '', '', '']);
+                        ws.mergeCells('A' + empty.number + ':G' + empty.number);
                         empty.getCell(1).alignment = { horizontal: 'center' };
                         empty.getCell(1).font = { italic: true, color: { argb: 'FF78716C' } };
                     } else {
                         rows.forEach(function (r) {
                             var pct = r.total > 0 ? (r.closed / r.total) : 0;
-                            var rw = ws.addRow([r.dept, r.div, r.total, r.open, r.closed, pct]);
+                            var rw = ws.addRow([r.dept, r.div, r.total, r.open, r.proses, r.closed, pct]);
                             rw.alignment = { vertical: 'middle' };
                             rw.getCell(3).alignment = { horizontal: 'center' };
                             rw.getCell(4).alignment = { horizontal: 'center' };
                             rw.getCell(5).alignment = { horizontal: 'center' };
-                            rw.getCell(6).numFmt = '0.00%';
                             rw.getCell(6).alignment = { horizontal: 'center' };
-                            rw.getCell(6).font = { bold: true, color: { argb: pct >= 0.8 ? 'FF059669' : pct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
+                            rw.getCell(7).numFmt = '0.00%';
+                            rw.getCell(7).alignment = { horizontal: 'center' };
+                            rw.getCell(7).font = { bold: true, color: { argb: pct >= 0.8 ? 'FF059669' : pct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
                             rw.eachCell(function (cell) {
                                 cell.border = { top: { style: 'hair', color: { argb: 'FFE5DFD3' } }, bottom: { style: 'hair', color: { argb: 'FFE5DFD3' } }, left: { style: 'hair', color: { argb: 'FFE5DFD3' } }, right: { style: 'hair', color: { argb: 'FFE5DFD3' } } };
                             });
@@ -4837,6 +5072,97 @@
                 }).catch(function (e) {
                     toast('Gagal export: ' + (e.message || e), 'toast-error');
                 }).then(restore);
+            }
+
+            /**
+             * Export Excel — Pivot Table Jenis Audit (Departemen × Jenis).
+             * Mengikuti filter dashboard aktif (filterDashRows) & urutan/search pivot saat ini.
+             */
+            function exportPivotExcel() {
+                var restore = _btnLoading('btnExportPivot', 'Memproses…');
+                ensureExcelJS().then(function (ExcelJSLib) {
+                    var model = buildPivotModel(filterDashRows());
+                    var depts = getPivotSortedDepts(model);
+
+                    var wb = new ExcelJSLib.Workbook();
+                    wb.creator = 'Portal Monitor TL';
+                    wb.created = new Date();
+                    var ws = wb.addWorksheet('Pivot Jenis Audit');
+
+                    var ncol = model.cols.length + 2; // Departemen + jenis + Total
+                    var lastColLetter = _colLetter(ncol);
+
+                    // Title
+                    ws.mergeCells('A1:' + lastColLetter + '1');
+                    var c1 = ws.getCell('A1');
+                    c1.value = 'Pivot Table — Distribusi Jenis Audit (Departemen × Jenis)';
+                    c1.font = { bold: true, size: 14, color: { argb: 'FF0066B3' } };
+                    c1.alignment = { horizontal: 'left', vertical: 'middle' };
+                    ws.getRow(1).height = 22;
+
+                    // Periode
+                    ws.mergeCells('A2:' + lastColLetter + '2');
+                    var c2 = ws.getCell('A2');
+                    c2.value = 'Periode: ' + periodLabelHuman() + '  •  Tanggal Export: ' + fmtDDMMYYYY(new Date());
+                    c2.font = { italic: true, size: 10, color: { argb: 'FF57534E' } };
+
+                    ws.addRow([]); // blank row 3
+
+                    // Header
+                    var headerArr = ['Departemen'].concat(model.cols).concat(['Total']);
+                    var hdr = ws.addRow(headerArr);
+                    hdr.height = 22;
+                    hdr.eachCell(function (cell) {
+                        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0066B3' } };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+                    });
+
+                    if (depts.length === 0) {
+                        var empty = ws.addRow(['Tidak ada data untuk filter saat ini']);
+                        ws.mergeCells('A' + empty.number + ':' + lastColLetter + empty.number);
+                        empty.getCell(1).alignment = { horizontal: 'center' };
+                        empty.getCell(1).font = { italic: true, color: { argb: 'FF78716C' } };
+                    } else {
+                        depts.forEach(function (d) {
+                            var arr = [d].concat(model.cols.map(function (c) { return model.matrix[d][c] || 0; })).concat([model.matrix[d].__total]);
+                            var rw = ws.addRow(arr);
+                            rw.eachCell(function (cell, col) {
+                                cell.border = { top: { style: 'hair', color: { argb: 'FFE5DFD3' } }, bottom: { style: 'hair', color: { argb: 'FFE5DFD3' } }, left: { style: 'hair', color: { argb: 'FFE5DFD3' } }, right: { style: 'hair', color: { argb: 'FFE5DFD3' } } };
+                                if (col > 1) cell.alignment = { horizontal: 'center' };
+                            });
+                            rw.getCell(ncol).font = { bold: true };
+                        });
+                        // Baris total kolom
+                        var totArr = ['Total'].concat(model.cols.map(function (c) { return model.colTotals[c]; })).concat([model.grand]);
+                        var totRow = ws.addRow(totArr);
+                        totRow.eachCell(function (cell, col) {
+                            cell.font = { bold: true, color: { argb: 'FF1C1917' } };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2EFE7' } };
+                            cell.border = { top: { style: 'thin', color: { argb: 'FFD4CEBD' } }, bottom: { style: 'thin', color: { argb: 'FFD4CEBD' } } };
+                            if (col > 1) cell.alignment = { horizontal: 'center' };
+                        });
+                    }
+
+                    autoSizeColumns(ws);
+                    ws.getColumn(1).width = Math.max(ws.getColumn(1).width || 20, 22);
+                    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: hdr.number }];
+
+                    var fname = 'pivot_jenis_audit_' + periodFilenameSuffix() + '.xlsx';
+                    return downloadWorkbook(wb, fname).then(function () {
+                        toast('Pivot berhasil di-download: ' + fname, 'toast-success');
+                    });
+                }).catch(function (e) {
+                    toast('Gagal export: ' + (e.message || e), 'toast-error');
+                }).then(restore);
+            }
+
+            /* Konversi nomor kolom (1-based) → huruf kolom Excel (1→A, 27→AA). */
+            function _colLetter(num) {
+                var s = '';
+                while (num > 0) { var rem = (num - 1) % 26; s = String.fromCharCode(65 + rem) + s; num = Math.floor((num - 1) / 26); }
+                return s;
             }
 
             /* ══════════════════════════════════════
