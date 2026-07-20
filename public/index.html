@@ -876,31 +876,31 @@
         .dt-mini-card {
             display: flex;
             align-items: center;
-            gap: 11px;
+            gap: 9px;
             background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: var(--r);
-            padding: 9px 15px;
-            min-width: 158px;
+            padding: 8px 13px;
+            min-width: 122px;
             box-shadow: var(--shadow-xs);
         }
 
         .dt-mini-ico {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 17px;
+            font-size: 15px;
             flex-shrink: 0;
         }
 
         .dt-mini-val {
-            font-size: 21px;
+            font-size: 19px;
             font-weight: 800;
             line-height: 1;
-            letter-spacing: -.6px;
+            letter-spacing: -.5px;
             color: var(--text);
         }
 
@@ -1311,6 +1311,22 @@
             overflow-x: auto;
             max-height: 520px;
             overflow-y: auto;
+        }
+
+        /* Data Temuan: area scroll tabel dibuat besar & adaptif tinggi layar (bukan kotak
+           kecil 520px) agar tidak terasa sempit/"terjebak" saat scroll. Header kolom tetap
+           sticky di dalam area ini + smooth scrolling. */
+        .dt-table-scroll {
+            max-height: calc(100vh - 250px);
+            min-height: 360px;
+            /* Sengaja TIDAK memakai overscroll-behavior:contain — agar saat scroll tabel
+               mentok atas/bawah, halaman ikut lanjut scroll (natural scroll chaining),
+               tidak terasa "nyangkut" padahal masih ada konten di atas/bawah tabel. */
+        }
+
+        /* Bayangan halus di bawah header sticky agar batas header–isi jelas saat scroll. */
+        thead th {
+            box-shadow: 0 1px 0 var(--border);
         }
 
         table {
@@ -4718,15 +4734,27 @@
 
                 // Mini-card ringkas (mengikuti hasil filter aktif):
                 //  - Jumlah unik Judul Penugasan (kolom 'Judul Audit')
-                //  - Total rekomendasi (baris ber-'Rekomendasi' tidak kosong)
+                //  - Total rekomendasi (jumlah baris hasil filter — sama seperti card Dashboard)
+                //  - Jumlah Open / Proses / Close (status turunan) — khusus role admin.
                 var uniqJudul = (function () { var set = {}; S.filtered.forEach(function (r) { var j = String(r['Judul Audit'] || '').trim(); if (j) set[j] = 1; }); return Object.keys(set).length; })();
-                // Total Rekomendasi — logika SAMA dgn card 'Total Rekomendasi' di Dashboard:
-                // yaitu jumlah baris (rekomendasi) hasil filter, bukan hitung sel non-kosong.
                 var totalRek = S.filtered.length;
+                var stCount = { Open: 0, Proses: 0, Close: 0 };
+                S.filtered.forEach(function (r) { stCount[deriveStatus(r)]++; });
+                function miniCard(bg, ico, val, lbl, valColor) {
+                    return '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:' + bg + '">' + ico + '</div>' +
+                        '<div><div class="dt-mini-val"' + (valColor ? ' style="color:' + valColor + '"' : '') + '>' + val + '</div>' +
+                        '<div class="dt-mini-lbl">' + lbl + '</div></div></div>';
+                }
                 var miniCards =
                     '<div class="dt-mini-cards">' +
-                    '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:var(--tj-blue-light)">📋</div><div><div class="dt-mini-val">' + uniqJudul + '</div><div class="dt-mini-lbl">Judul Penugasan (Unik)</div></div></div>' +
-                    '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:var(--green-light)">📝</div><div><div class="dt-mini-val">' + totalRek + '</div><div class="dt-mini-lbl">Total Rekomendasi</div></div></div>' +
+                    miniCard('var(--tj-blue-light)', '📋', uniqJudul, 'Judul Penugasan (Unik)') +
+                    miniCard('var(--surface3)', '📝', totalRek, 'Total Rekomendasi') +
+                    // Kartu status hanya untuk admin (PIC menyembunyikan baris Close → hitungan bisa membingungkan).
+                    (isAdmin
+                        ? miniCard('var(--amber-light)', '🟡', stCount.Open, 'Open', 'var(--amber)') +
+                          miniCard('var(--purple-light)', '🔄', stCount.Proses, 'Proses', 'var(--purple)') +
+                          miniCard('var(--green-light)', '✅', stCount.Close, 'Close', 'var(--green)')
+                        : '') +
                     '</div>';
 
                 function sortMeta(col) {
@@ -4802,7 +4830,7 @@
                     (canEdit(S.user.role) ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
                     (filterCount > 0 ? '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Reset Filter</button>' : '') +
                     '</div>' +
-                    '<div class="table-scroll"><table><thead><tr>' +
+                    '<div class="table-scroll dt-table-scroll"><table><thead><tr>' +
                     '<th class="th-sort ' + smNo.cls + '" onclick="toggleSortCol(\'No\')" style="cursor:pointer">No <span class="th-sort-icon">' + smNo.icon + '</span></th>' +
                     '<th>Tgl Laporan</th><th>Jenis</th><th style="min-width:160px">Judul Audit</th><th style="min-width:190px">Rekomendasi</th><th style="min-width:150px">Tindak Lanjut</th>' +
                     '<th class="th-sort ' + smDue.cls + '" onclick="toggleSortCol(\'Due Date\')" style="min-width:100px;cursor:pointer">Due Date <span class="th-sort-icon">' + smDue.icon + '</span></th>' +
