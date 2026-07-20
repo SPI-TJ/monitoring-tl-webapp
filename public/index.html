@@ -866,6 +866,86 @@
             font-weight: 500;
         }
 
+        /* ── Data Temuan: 2 mini-card ringkas di pojok kanan atas ── */
+        .dt-mini-cards {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .dt-mini-card {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            padding: 9px 15px;
+            min-width: 158px;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .dt-mini-ico {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            flex-shrink: 0;
+        }
+
+        .dt-mini-val {
+            font-size: 21px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -.6px;
+            color: var(--text);
+        }
+
+        .dt-mini-lbl {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text3);
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+
+        /* Toolbar filter Data Temuan dibuat baris tersendiri (di bawah header) agar
+           mini-card tetap rapi di kanan atas. */
+        .dt-toolbar {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+
+        /* Baris filter "Jenis Pemeriksaan" — tampilan lebih jelas sebagai tombol filter. */
+        .dt-jenis-filter .mf-pill {
+            background: var(--surface3);
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+
+        .dt-jenis-filter .mf-pill:hover {
+            background: var(--tj-blue-pale);
+            color: var(--tj-blue);
+            border-color: var(--tj-blue);
+        }
+
+        .dt-jenis-filter .mf-pill.active {
+            background: var(--tj-blue);
+            color: #fff;
+            border-color: var(--tj-blue);
+        }
+
+        .mf-hint {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text3);
+            font-style: italic;
+        }
+
         /* ═══════════════════════════════════════════════════
    STAT CARDS
 ═══════════════════════════════════════════════════ */
@@ -2228,10 +2308,14 @@
             grid-template-columns: 1fr;
         }
 
-        /* 3 kartu distribusi (Direktorat / Divisi / Departemen) — auto-fit agar
-           membungkus rapi & responsif tanpa memicu overflow horizontal. */
+        /* 3 kartu distribusi: Direktorat & Divisi berdampingan (2 kolom), Departemen
+           dibuat full-width di bawahnya (.dist-span-full) agar tabel tidak terlalu sempit. */
         .dist-3col {
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .dist-span-full {
+            grid-column: 1 / -1;
         }
 
         @media (max-width: 900px) {
@@ -2769,7 +2853,8 @@
                 grid-template-columns: 1fr 1fr;
             }
 
-            .dist-2col {
+            .dist-2col,
+            .dist-3col {
                 grid-template-columns: 1fr;
             }
         }
@@ -3866,20 +3951,31 @@
                 var kategoriPills = '';
                 var jenisPills = '';
                 {
+                    // Kategori — pills dinamis dari kolom 'Kategori Pemeriksaan' (tanpa hardcode).
                     var kk = S.dashKategori;
-                    kategoriPills =
-                        '<div class="mf-pills" style="margin-left:8px">' +
-                        '<span class="mf-label" style="margin-right:6px">🗂 Kategori:</span>' +
-                        '<button class="mf-pill' + (kk === null ? ' active' : '') + '" onclick="setDashKategori(null)">Semua</button>' +
-                        '<button class="mf-pill' + (kk === 'Internal' ? ' active' : '') + '" onclick="setDashKategori(\'Internal\')">Internal</button>' +
-                        '<button class="mf-pill' + (kk === 'Eksternal' ? ' active' : '') + '" onclick="setDashKategori(\'Eksternal\')">Eksternal</button>' +
-                        '</div>';
+                    var kSetD = {};
+                    S.allRows.forEach(function (r) { var k = String(r['Kategori Pemeriksaan'] || '').trim(); if (k) kSetD[k] = 1; });
+                    var kListD = Object.keys(kSetD).sort();
+                    if (kListD.length > 0) {
+                        kategoriPills =
+                            '<div class="mf-pills" style="margin-left:8px">' +
+                            '<span class="mf-label" style="margin-right:6px">🗂 Kategori:</span>' +
+                            '<button class="mf-pill' + (kk === null ? ' active' : '') + '" onclick="setDashKategori(null)">Semua</button>' +
+                            kListD.map(function (k) { return '<button class="mf-pill' + (kk === k ? ' active' : '') + '" onclick="setDashKategori(\'' + escJs(k) + '\')">' + escH(k) + '</button>'; }).join('') +
+                            '</div>';
+                    }
 
+                    // Jenis Pemeriksaan — DIBATASI oleh Kategori yang dipilih (sama seperti Tab Data Temuan).
+                    // Kategori kosong (Semua) → semua jenis. Pilihan yg tak relevan otomatis di-prune.
                     var jenisSet = {};
-                    S.allRows.forEach(function (r) { var j = String(r['Jenis Pemeriksaan'] || '').trim(); if (j) jenisSet[j] = 1; });
+                    S.allRows.forEach(function (r) {
+                        if (S.dashKategori && String(r['Kategori Pemeriksaan'] || '').trim() !== S.dashKategori) return;
+                        var j = String(r['Jenis Pemeriksaan'] || '').trim(); if (j) jenisSet[j] = 1;
+                    });
                     var jenisList = Object.keys(jenisSet).sort();
+                    S.dashJenis = (S.dashJenis || []).filter(function (j) { return jenisList.indexOf(j) >= 0; });
                     if (jenisList.length > 0) {
-                        var selJ = S.dashJenis || [];
+                        var selJ = S.dashJenis;
                         var allActive = selJ.length === 0;
                         var pills = '<button class="mf-pill' + (allActive ? ' active' : '') + '" onclick="clearDashJenis()">Semua</button>' +
                             jenisList.map(function (j) {
@@ -3934,13 +4030,26 @@
                     ? '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Rekomendasi', 'Proporsi Open vs Close', '') + ccard('chartDir', '🏢', 'Per Direktorat', 'Jumlah rekomendasi', '') + ccard('chartProg', '📈', 'Progres per Direktorat', 'Rata-rata % penyelesaian', '') + '</div>'
                     : '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Divisi', 'Proporsi Open vs Close', '') + ccard('chartDept', '🏬', 'Per Departemen', 'Jumlah rekomendasi', '') + ccard('chartDeptProg', '📈', 'Progres per Departemen', 'Rata-rata % penyelesaian', '') + '</div>';
 
-                // Catatan: chart "Tren % Close per Bulan" (chartTrend) DIHAPUS — redundan dgn
-                // Kurva S di atas (keduanya kurva kumulatif % Close). Kini hanya satu line chart.
+                // ── Tren % Penyelesaian (Close) per Bulan — hanya Admin, full-width ──
+                var trendCardHtml = '';
+                if (isAdmin) {
+                    var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
+                    var tr = trendDirection(td.pct);
+                    trendCardHtml = '<div class="charts-grid charts-1">' +
+                        '<div class="chart-card"><div class="cc-head">' +
+                        '<div><div class="cc-title">📈 Tren % Penyelesaian (Close) per Bulan</div>' +
+                        '<div class="cc-sub">Cumulative — efektivitas tim tindak lanjut dari waktu ke waktu</div></div>' +
+                        '<div style="display:flex;align-items:center;gap:10px"><span class="tr-badge ' + tr.cls + '">' + tr.icon + ' ' + tr.label + '</span><span class="cc-icon">📈</span></div>' +
+                        '</div><div class="cc-body cc-body-wide"><canvas id="chartTrend"></canvas></div></div>' +
+                        '</div>';
+                }
 
-                // ── Kurva S (untuk semua role) — full width, dengan dropdown Harian/Bulanan ──
-                var sCurveCard = '<div class="charts-grid charts-1">' +
+                // ── Kurva S — HANYA tampil saat filter Jenis Pemeriksaan 'KNKT' aktif ──
+                // (S-curve khusus pelaporan progress audit KNKT). Dropdown Harian/Bulanan dipertahankan.
+                var showSCurve = (S.dashJenis || []).indexOf('KNKT') >= 0;
+                var sCurveCard = !showSCurve ? '' : '<div class="charts-grid charts-1">' +
                     '<div class="chart-card"><div class="cc-head">' +
-                    '<div><div class="cc-title">📈 Kurva S — Progress Kumulatif Tindak Lanjut</div>' +
+                    '<div><div class="cc-title">📈 Kurva S — Progress Kumulatif Tindak Lanjut (KNKT)</div>' +
                     '<div class="cc-sub">Akumulasi penyelesaian (Close) terhadap total rekomendasi — mengikuti filter aktif</div></div>' +
                     '<div style="display:flex;align-items:center;gap:8px">' +
                     '<select class="mf-year-sel" onchange="setSCurveMode(this.value)" style="min-width:104px" title="Granularitas sumbu waktu">' +
@@ -3962,7 +4071,8 @@
                     : '';
 
                 var distSection = buildDistCards(isAdmin, s);
-                showMain(monthFilterHtml + statsHtml + bigProg + sCurveCard + chartCols + distSection + pivotCard);
+                // Urutan: chart 3-up → Tren bulanan → Kurva S (jika KNKT aktif) → distribusi → pivot.
+                showMain(monthFilterHtml + statsHtml + bigProg + chartCols + trendCardHtml + sCurveCard + distSection + pivotCard);
                 if (isAdmin) renderPivotTable();   // isi #pivotTableWrap (tanpa re-render seluruh dashboard)
                 setTimeout(function () { renderCharts(isAdmin, fRows, s); }, 60);
             }
@@ -3970,8 +4080,82 @@
             /* Ganti granularitas Kurva S (Harian/Bulanan) — sinkron dengan filter dashboard. */
             function setSCurveMode(m) { S.sCurveMode = (m === 'harian') ? 'harian' : 'bulanan'; renderDashboard(); }
 
-            /* Catatan: buildTrendData() & trendDirection() DIHAPUS bersama chart Tren lama —
-               digantikan sepenuhnya oleh buildSCurveData() (Kurva S). */
+            /* ── Trend data: cumulative % Close per bulan ───────
+               Setiap bulan M:
+                 total[M]  = jumlah rekomendasi dengan Tanggal Laporan <= akhir bulan M
+                 closed[M] = jumlah rekomendasi dengan Status='Close' & Tanggal Close <= akhir bulan M
+                 pct[M]    = closed / total * 100
+               Range bulan:
+                 - dashYear set → Jan..Des dari tahun itu (atau s.d. dashMonth bila set)
+                 - else        → 12 bulan terakhir s.d. bulan saat ini
+            ──────────────────────────────────────────────────── */
+            function buildTrendData(rows, dashYear, dashMonth) {
+                if (!rows || rows.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+
+                var reportedDates = [];
+                rows.forEach(function (r) {
+                    if (r['Tanggal Laporan']) {
+                        var d = new Date(r['Tanggal Laporan']);
+                        if (!isNaN(d.getTime())) reportedDates.push(d);
+                    }
+                });
+                if (reportedDates.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+
+                var now = new Date();
+                var startD, endD;
+                if (dashYear) {
+                    var y = Number(dashYear);
+                    startD = new Date(y, 0, 1);
+                    var endMonth = dashMonth ? (Number(dashMonth) - 1) : 11;
+                    if (y === now.getFullYear()) endMonth = Math.min(endMonth, now.getMonth());
+                    endD = new Date(y, endMonth, 1);
+                } else {
+                    endD = new Date(now.getFullYear(), now.getMonth(), 1);
+                    startD = new Date(endD); startD.setMonth(startD.getMonth() - 11);
+                    // Tetapi jangan lebih awal dari bulan rekomendasi pertama
+                    var minReported = new Date(Math.min.apply(null, reportedDates.map(function (d) { return d.getTime(); })));
+                    var minMonthStart = new Date(minReported.getFullYear(), minReported.getMonth(), 1);
+                    if (minMonthStart > startD) startD = minMonthStart;
+                }
+
+                var buckets = [];
+                var cur = new Date(startD);
+                while (cur <= endD) { buckets.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
+                if (buckets.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+
+                var labels = [], totalArr = [], closedArr = [], pctArr = [];
+                buckets.forEach(function (m) {
+                    var eom = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59);
+                    var total = 0, closed = 0;
+                    rows.forEach(function (r) {
+                        if (!r['Tanggal Laporan']) return;
+                        var tl = new Date(r['Tanggal Laporan']);
+                        if (isNaN(tl.getTime()) || tl > eom) return;
+                        total++;
+                        // Pakai status turunan → Close tetap dihitung dari Status asli 'Close'.
+                        if (String(r['Status'] || '') === 'Close' && r['Tanggal Close']) {
+                            var tc = new Date(r['Tanggal Close']);
+                            if (!isNaN(tc.getTime()) && tc <= eom) closed++;
+                        }
+                    });
+                    var pct = total > 0 ? (closed / total * 100) : 0;
+                    labels.push(MONTHS[m.getMonth()] + ' ' + String(m.getFullYear()).slice(-2));
+                    totalArr.push(total); closedArr.push(closed); pctArr.push(+pct.toFixed(1));
+                });
+                return { labels: labels, pct: pctArr, closed: closedArr, total: totalArr };
+            }
+
+            /* ── Direction badge: hijau (naik ≥2pp), kuning (±<2pp), merah (turun ≥2pp) ── */
+            function trendDirection(pctArr) {
+                if (!pctArr || pctArr.length < 2) return { label: 'Data belum cukup', cls: 'tr-na', icon: '−' };
+                var last = pctArr[pctArr.length - 1];
+                var prev = pctArr[pctArr.length - 2];
+                var diff = +(last - prev).toFixed(1);
+                if (diff >= 2)  return { label: 'Tren Membaik (+' + diff + ' pp)', cls: 'tr-up',   icon: '▲' };
+                if (diff <= -5) return { label: 'Tren Menurun (' + diff + ' pp)',  cls: 'tr-down', icon: '▼' };
+                if (diff < 0)   return { label: 'Tren Sedikit Turun (' + diff + ' pp)', cls: 'tr-flat', icon: '▽' };
+                return { label: 'Tren Stagnan (' + (diff > 0 ? '+' : '') + diff + ' pp)', cls: 'tr-flat', icon: '−' };
+            }
 
             /* ── Data Kurva S: progress kumulatif (Close) terhadap total ──────────
                rows  : hasil filter dashboard (filterDashRows) — sudah tersinkron dgn
@@ -4141,6 +4325,8 @@
                 renderTable();
             }
             function clearTableJenis() { S.tableJenis = []; S.page = 1; renderTable(); }
+            /* Set filter Kategori Data Temuan via tombol (pill). '' = Semua. */
+            function setTableKategori(k) { S.tableKategori = k || null; S.page = 1; renderTable(); }
 
             function buildDistCards(isAdmin, s) {
                 var lbl = S.dashMonth
@@ -4164,7 +4350,9 @@
                 var thead = '<thead><tr><th style="min-width:130px">Nama</th><th>Total</th><th>Open</th><th>Proses</th><th>Close</th><th style="min-width:130px">% Selesai</th></tr></thead>';
                 var cardDir = '<div class="card"><div class="card-header"><div><div class="card-title">🏢 Distribusi per Direktorat</div><div class="card-subtitle">Rekapitulasi tiap direktorat' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDirDetail) + '</tbody></table></div></div>';
                 var cardDiv = '<div class="card"><div class="card-header"><div><div class="card-title">🏛️ Distribusi per Divisi</div><div class="card-subtitle">Rekapitulasi tiap divisi' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDivDetail) + '</tbody></table></div></div>';
-                var cardDept = '<div class="card"><div class="card-header"><div><div class="card-title">🏬 Distribusi per Departemen</div><div class="card-subtitle">Rekapitulasi tiap departemen' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDeptDetail) + '</tbody></table></div></div>';
+                // Departemen full-width (dist-span-full) → lebih lega dibanding dibagi 3 kolom.
+                var cardDeptCls = isAdmin ? 'card dist-span-full' : 'card';
+                var cardDept = '<div class="' + cardDeptCls + '"><div class="card-header"><div><div class="card-title">🏬 Distribusi per Departemen</div><div class="card-subtitle">Rekapitulasi tiap departemen' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDeptDetail) + '</tbody></table></div></div>';
                 return isAdmin
                     ? '<div class="dist-grid dist-3col" style="margin-top:0">' + cardDir + cardDiv + cardDept + '</div>'
                     : '<div class="dist-grid dist-1col" style="margin-top:0">' + cardDept + '</div>';
@@ -4332,6 +4520,77 @@
                     if (dirEl && s.byDir) { var dk = Object.keys(s.byDir).sort((a, b) => s.byDir[b] - s.byDir[a]).slice(0, 10); var dv = dk.map(k => s.byDir[k]); S.charts.dir = new Chart(dirEl, { type: 'bar', data: { labels: dk, datasets: [{ label: 'Rekomendasi', data: dv, backgroundColor: dv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
                     var prEl = document.getElementById('chartProg');
                     if (prEl) { var pm = {}, cm = {}; rows.forEach(r => { var d = r['Kode Direktorat'] || 'N/A'; pm[d] = (pm[d] || 0) + (Number(r['Progres%']) || 0); cm[d] = (cm[d] || 0) + 1; }); var pk = Object.keys(pm).sort((a, b) => (pm[b] / cm[b]) - (pm[a] / cm[a])).slice(0, 8); var pv = pk.map(k => +(pm[k] / cm[k]).toFixed(0)); S.charts.prog = new Chart(prEl, { type: 'bar', data: { labels: pk, datasets: [{ label: 'Avg Progres%', data: pv, backgroundColor: pv.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
+
+                    // ─── Line Chart: Tren % Close per Bulan (cumulative) ───
+                    var trEl = document.getElementById('chartTrend');
+                    if (trEl) {
+                        var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
+                        if (td.labels.length > 0) {
+                            var ctx = trEl.getContext('2d');
+                            // Gradient fill di bawah garis — tone biru lembut, konsisten tema
+                            var grad = ctx.createLinearGradient(0, 0, 0, 260);
+                            grad.addColorStop(0, 'rgba(0, 102, 179, .22)');
+                            grad.addColorStop(1, 'rgba(0, 102, 179, .00)');
+                            S.charts.trend = new Chart(trEl, {
+                                type: 'line',
+                                data: {
+                                    labels: td.labels,
+                                    datasets: [{
+                                        label: '% Close',
+                                        data: td.pct,
+                                        borderColor: TJ,
+                                        backgroundColor: grad,
+                                        borderWidth: 2.5,
+                                        tension: 0.4,
+                                        fill: true,
+                                        pointRadius: 4,
+                                        pointHoverRadius: 6,
+                                        pointBackgroundColor: '#fff',
+                                        pointBorderColor: TJ,
+                                        pointBorderWidth: 2,
+                                        pointHoverBackgroundColor: TJ,
+                                        pointHoverBorderColor: '#fff',
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: { mode: 'index', intersect: false },
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            backgroundColor: 'rgba(28,25,23,.95)',
+                                            titleColor: '#fff',
+                                            bodyColor: '#fff',
+                                            padding: 12,
+                                            cornerRadius: 8,
+                                            boxPadding: 4,
+                                            callbacks: {
+                                                title: function (items) { return items.length ? 'Bulan ' + items[0].label : ''; },
+                                                label: function (ctx) {
+                                                    var i = ctx.dataIndex;
+                                                    return [
+                                                        '  ✅ Close       : ' + td.closed[i] + ' rekomendasi',
+                                                        '  📋 Total       : ' + td.total[i] + ' rekomendasi',
+                                                        '  📈 % Close     : ' + td.pct[i] + '%',
+                                                    ];
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        x: { grid: { color: GRID, display: false }, ticks: { font: { size: 10 } } },
+                                        y: {
+                                            min: 0, max: 100,
+                                            grid: { color: GRID },
+                                            ticks: { callback: function (v) { return v + '%'; }, stepSize: 20, font: { size: 10 } },
+                                            title: { display: true, text: '% Rekomendasi Close', font: { size: 10, weight: 700 }, color: '#78716C', padding: { bottom: 6 } },
+                                        }
+                                    },
+                                }
+                            });
+                        }
+                    }
                 } else {
                     var dptEl = document.getElementById('chartDept');
                     if (dptEl && s.byDept) { var dpk = Object.keys(s.byDept).sort((a, b) => s.byDept[b] - s.byDept[a]); var dpv = dpk.map(k => s.byDept[k]); S.charts.dept = new Chart(dptEl, { type: 'bar', data: { labels: dpk, datasets: [{ label: 'Rekomendasi', data: dpv, backgroundColor: dpv.map((_, i) => i % 2 === 0 ? TJ : TJM), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { grid: { color: GRID }, ticks: { stepSize: 1 }, beginAtZero: true } } } }); }
@@ -4364,7 +4623,8 @@
                 rcF = rcF !== undefined ? rcF : getFV('fltRC');
                 divF = divF !== undefined ? divF : getFV('fltDivisi');
                 deptF = deptF !== undefined ? deptF : getFV('fltDept');
-                katF = katF !== undefined ? katF : getFV('fltKategori');
+                // Kategori kini memakai tombol (pill) bertumpu state S.tableKategori — sama seperti Dashboard.
+                katF = katF !== undefined ? katF : (S.tableKategori || '');
 
                 var isAdmin = isAdminRole(S.user.role), ql = q.toLowerCase();
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel — sembunyikan
@@ -4373,7 +4633,21 @@
                 var hideClose = !isAdmin;
                 if (hideClose) stF = '';
                 S.tableKategori = katF || null;
-                var jenisSel = S.tableJenis || [];
+
+                // Daftar Jenis Pemeriksaan yang tersedia — DIBATASI oleh Kategori yang dipilih.
+                // katF kosong (Semua) → semua jenis. Semua nilai diambil dari kolom GSheet
+                // ('Kategori Pemeriksaan' & 'Jenis Pemeriksaan'), tidak ada yang di-hardcode.
+                var jSetT = {};
+                S.allRows.forEach(function (r) {
+                    if (katF && String(r['Kategori Pemeriksaan'] || '').trim() !== katF) return;
+                    var j = String(r['Jenis Pemeriksaan'] || '').trim();
+                    if (j) jSetT[j] = 1;
+                });
+                var jArr = Object.keys(jSetT).sort();
+                // Buang pilihan jenis yang tak lagi relevan dengan kategori aktif.
+                S.tableJenis = (S.tableJenis || []).filter(function (j) { return jArr.indexOf(j) >= 0; });
+                var jenisSel = S.tableJenis;
+
                 // Filter status memakai STATUS TURUNAN (deriveStatus) → mendukung nilai 'Proses'.
                 S.filtered = S.allRows.filter(function (r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
@@ -4409,26 +4683,51 @@
                 if (isAdmin) { var ds = {}; S.allRows.forEach(r => { if (r['Divisi']) ds[r['Divisi']] = 1; }); divOpts = Object.keys(ds).sort().map(d => '<option value="' + escH(d) + '"' + (divF === d ? ' selected' : '') + '>' + escH(d) + '</option>').join(''); }
                 { var dp = {}; S.allRows.forEach(r => { if (r['Departemen']) dp[r['Departemen']] = 1; }); deptOpts = Object.keys(dp).sort().map(d => '<option value="' + escH(d) + '"' + (deptF === d ? ' selected' : '') + '>' + escH(d) + '</option>').join(''); }
 
+                // Pills Jenis Pemeriksaan — memakai jArr (sudah dibatasi kategori aktif) di atas.
                 var jenisFilterHtml = '';
-                {
-                    var jSet = {};
-                    S.allRows.forEach(function (r) { var j = String(r['Jenis Pemeriksaan'] || '').trim(); if (j) jSet[j] = 1; });
-                    var jArr = Object.keys(jSet).sort();
-                    if (jArr.length > 0) {
-                        var selJT = S.tableJenis || [];
-                        var allActJ = selJT.length === 0;
-                        var pillsJT = '<button class="mf-pill' + (allActJ ? ' active' : '') + '" onclick="clearTableJenis()">Semua</button>' +
-                            jArr.map(function (j) {
-                                var act = selJT.indexOf(j) >= 0;
-                                return '<button class="mf-pill' + (act ? ' active' : '') + '" onclick="toggleTableJenis(\'' + escJs(j) + '\')">' + escH(j) + '</button>';
-                            }).join('');
-                        jenisFilterHtml =
-                            '<div class="month-filter-wrap" style="margin:0 0 10px 0">' +
-                            '<span class="mf-label">🔎 Jenis Pemeriksaan:</span>' +
-                            '<div class="mf-pills" style="flex-wrap:wrap">' + pillsJT + '</div>' +
-                            '</div>';
-                    }
+                if (jArr.length > 0) {
+                    var selJT = S.tableJenis || [];
+                    var allActJ = selJT.length === 0;
+                    var pillsJT = '<button class="mf-pill' + (allActJ ? ' active' : '') + '" onclick="clearTableJenis()">Semua</button>' +
+                        jArr.map(function (j) {
+                            var act = selJT.indexOf(j) >= 0;
+                            return '<button class="mf-pill' + (act ? ' active' : '') + '" onclick="toggleTableJenis(\'' + escJs(j) + '\')">' + escH(j) + '</button>';
+                        }).join('');
+                    jenisFilterHtml =
+                        '<div class="month-filter-wrap dt-jenis-filter" style="margin:0 0 10px 0">' +
+                        '<span class="mf-label">🔎 Filter Jenis Pemeriksaan:</span>' +
+                        '<div class="mf-pills" style="flex-wrap:wrap">' + pillsJT + '</div>' +
+                        '<span class="mf-hint">👆 klik tombol untuk memfilter</span>' +
+                        '</div>';
                 }
+
+                // Filter Kategori sebagai TOMBOL (pill) — sama seperti Dashboard, nilai dinamis
+                // dari kolom 'Kategori Pemeriksaan' (tanpa hardcode).
+                var katFilterHtml = '';
+                { var kSet = {}; S.allRows.forEach(function (r) { var k = String(r['Kategori Pemeriksaan'] || '').trim(); if (k) kSet[k] = 1; });
+                  var kArr = Object.keys(kSet).sort();
+                  if (kArr.length > 0) {
+                    var pillsK = '<button class="mf-pill' + (!katF ? ' active' : '') + '" onclick="setTableKategori(\'\')">Semua</button>' +
+                        kArr.map(function (k) { return '<button class="mf-pill' + (katF === k ? ' active' : '') + '" onclick="setTableKategori(\'' + escJs(k) + '\')">' + escH(k) + '</button>'; }).join('');
+                    katFilterHtml =
+                        '<div class="month-filter-wrap dt-jenis-filter" style="margin:0 0 10px 0">' +
+                        '<span class="mf-label">🗂 Filter Kategori Audit:</span>' +
+                        '<div class="mf-pills" style="flex-wrap:wrap">' + pillsK + '</div>' +
+                        '</div>';
+                  } }
+
+                // Mini-card ringkas (mengikuti hasil filter aktif):
+                //  - Jumlah unik Judul Penugasan (kolom 'Judul Audit')
+                //  - Total rekomendasi (baris ber-'Rekomendasi' tidak kosong)
+                var uniqJudul = (function () { var set = {}; S.filtered.forEach(function (r) { var j = String(r['Judul Audit'] || '').trim(); if (j) set[j] = 1; }); return Object.keys(set).length; })();
+                // Total Rekomendasi — logika SAMA dgn card 'Total Rekomendasi' di Dashboard:
+                // yaitu jumlah baris (rekomendasi) hasil filter, bukan hitung sel non-kosong.
+                var totalRek = S.filtered.length;
+                var miniCards =
+                    '<div class="dt-mini-cards">' +
+                    '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:var(--tj-blue-light)">📋</div><div><div class="dt-mini-val">' + uniqJudul + '</div><div class="dt-mini-lbl">Judul Penugasan (Unik)</div></div></div>' +
+                    '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:var(--green-light)">📝</div><div><div class="dt-mini-val">' + totalRek + '</div><div class="dt-mini-lbl">Total Rekomendasi</div></div></div>' +
+                    '</div>';
 
                 function sortMeta(col) {
                     var active = S.sortBy === col;
@@ -4479,11 +4778,10 @@
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' +
-                    '<div class="toolbar">' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
+                    '<div class="toolbar dt-toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    '<select id="fltKategori" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -4491,13 +4789,13 @@
                         ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
                     ) +
-                    '</div></div>' +
+                    '</div>' +
+                    katFilterHtml +
                     jenisFilterHtml +
                     '<div class="filter-toggle-bar"><button class="filter-toggle-btn' + ftbCls + '" onclick="toggleFilterPanel()">🔽 Filter' + ftbBadge + '</button><button class="btn btn-ghost btn-sm" onclick="mobileSearch()" style="flex-shrink:0">🔍</button></div>' +
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
                     (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    '<select id="m_fltKategori" onchange="applyFilter()"><option value="">Semua Kategori</option><option value="Internal"' + (katF === 'Internal' ? ' selected' : '') + '>Internal</option><option value="Eksternal"' + (katF === 'Eksternal' ? ' selected' : '') + '>Eksternal</option></select>' +
                     '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
