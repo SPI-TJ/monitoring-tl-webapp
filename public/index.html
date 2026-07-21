@@ -818,11 +818,19 @@
         textarea:focus {
             border-color: var(--tj-blue);
             box-shadow: 0 0 0 3px rgba(0, 102, 179, .10);
-            background: var(--tj-blue-pale);
+            /* background-color (bukan shorthand) agar caret dropdown pada <select> tidak terhapus */
+            background-color: var(--tj-blue-pale);
         }
 
+        /* Semua <select> diberi caret ▼ kustom — karena -webkit-appearance:none menghapus panah
+           bawaan browser, tanpa ini elemen tidak terlihat seperti dropdown. */
         select {
             cursor: pointer;
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230066B3' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 11px;
         }
 
         textarea {
@@ -944,6 +952,955 @@
             font-weight: 600;
             color: var(--text3);
             font-style: italic;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SUMMARY / AUDIT EXPLORER
+        ═══════════════════════════════════════════════════ */
+        /* Lebar penuh (mengikuti #mainContent, maks 1680px) — sama seperti tab Data Temuan,
+           agar tidak banyak ruang kosong di kiri/kanan pada desktop. */
+        .sum-wrap {
+            width: 100%;
+        }
+
+        /* Hero pencarian */
+        .sum-hero {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-xl);
+            box-shadow: var(--shadow-sm);
+            padding: 34px 34px 30px;
+            text-align: center;
+        }
+
+        .sum-hero h2 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -.6px;
+            color: var(--text);
+        }
+
+        .sum-hero .sum-sub {
+            font-size: 13.5px;
+            color: var(--text2);
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .sum-modes {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 22px 0 16px;
+        }
+
+        .sum-mode {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border: 1.5px solid var(--border2);
+            background: var(--surface2);
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text2);
+            cursor: pointer;
+            transition: var(--t);
+        }
+
+        .sum-mode:hover {
+            border-color: var(--tj-blue);
+            color: var(--tj-blue);
+        }
+
+        .sum-mode.active {
+            background: var(--tj-blue);
+            border-color: var(--tj-blue);
+            color: #fff;
+            box-shadow: var(--shadow-blue);
+        }
+
+        .sum-mode .sum-radio {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .sum-mode.active .sum-radio::after {
+            content: '';
+            position: absolute;
+            inset: 2.5px;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        .sum-searchbar {
+            display: flex;
+            gap: 10px;
+            max-width: 620px;
+            margin: 0 auto;
+        }
+
+        /* Hint agar jelas elemen di bawahnya adalah dropdown */
+        .sum-select-hint {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--tj-blue);
+            margin: 18px 0 8px;
+        }
+
+        .sum-select-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Dropdown dibuat jelas: appearance:none + caret ▼ + latar & border tegas */
+        .sum-select {
+            width: 100%;
+            padding: 13px 42px 13px 18px;
+            border: 1.5px solid var(--border2);
+            border-radius: var(--r);
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text);
+            background: var(--surface2);
+            cursor: pointer;
+            outline: none;
+            transition: var(--t);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .sum-select:hover {
+            border-color: var(--tj-blue);
+        }
+
+        .sum-select:focus {
+            border-color: var(--tj-blue);
+            background: var(--surface);
+            box-shadow: 0 0 0 3px rgba(0, 102, 179, .1);
+        }
+
+        .sum-select-caret {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--tj-blue);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        /* Caption ringkasan (menegaskan bahwa stats = lingkup hasil pencarian) */
+        .sum-stats-cap {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text2);
+            margin: 22px 2px 10px;
+        }
+
+        /* Stat ringkas — lingkup hasil pencarian */
+        .sum-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .sum-stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            padding: 16px 18px;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .sum-stat-val {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -.8px;
+            color: var(--tj-blue);
+            line-height: 1;
+        }
+
+        .sum-stat-lbl {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text3);
+            margin-top: 6px;
+        }
+
+        /* Empty / not-found state */
+        .sum-empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--text3);
+        }
+
+        .sum-empty-state .sum-emoji {
+            font-size: 54px;
+            opacity: .5;
+        }
+
+        .sum-empty-state p {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text2);
+            margin-top: 14px;
+        }
+
+        .sum-empty-state small {
+            font-size: 12.5px;
+            color: var(--text3);
+        }
+
+        /* Kartu Audit / root (Divisi/Departemen) */
+        .sum-results {
+            margin-top: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sum-audit {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .sum-audit-head {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, var(--surface2), var(--surface));
+        }
+
+        .sum-kicker {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--tj-blue);
+        }
+
+        .sum-audit-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -.4px;
+            color: var(--text);
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+
+        .sum-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .sum-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 4px 11px;
+            border-radius: 8px;
+            background: var(--surface3);
+            color: var(--text2);
+            border: 1px solid var(--border);
+        }
+
+        .sum-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sum-metric {
+            background: var(--surface);
+            padding: 14px 18px;
+            text-align: center;
+        }
+
+        .sum-metric-val {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -.5px;
+        }
+
+        .sum-metric-lbl {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--text2);
+            margin-top: 3px;
+        }
+
+        /* Section Temuan / grup Audit */
+        .sum-section {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sum-section:last-child {
+            border-bottom: none;
+        }
+
+        .sum-section-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -.3px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* ── Accordion: default hanya tampil judul; klik untuk expand detail ── */
+        .sum-acc-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+            border-radius: var(--r-sm);
+            transition: background .15s ease;
+        }
+
+        .sum-acc-head:hover {
+            background: var(--surface3);
+        }
+
+        .sum-acc-head:hover .sum-audit-title,
+        .sum-acc-head:hover .sum-section-title {
+            color: var(--tj-blue);
+        }
+
+        /* Pil aksi di kanan header → penanda jelas bahwa elemen bisa dibuka/tutup */
+        .sum-acc-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            background: var(--tj-blue-pale);
+            color: var(--tj-blue);
+            border: 1px solid rgba(0, 102, 179, .25);
+            border-radius: 99px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+            transition: var(--t);
+            margin-top: 2px;
+        }
+
+        .sum-acc-head:hover .sum-acc-toggle {
+            background: var(--tj-blue);
+            color: #fff;
+            border-color: var(--tj-blue);
+        }
+
+        .sum-acc-chev {
+            font-size: 12px;
+            font-weight: 800;
+            transition: transform .18s ease;
+            display: inline-block;
+        }
+
+        .sum-acc.collapsed .sum-acc-chev {
+            transform: rotate(-90deg);
+        }
+
+        /* Tukar label pil sesuai kondisi buka/tutup */
+        .sum-acc.collapsed .sum-acc-lbl-close {
+            display: none;
+        }
+
+        .sum-acc:not(.collapsed) .sum-acc-lbl-open {
+            display: none;
+        }
+
+        .sum-acc-body {
+            margin-top: 6px;
+        }
+
+        .sum-acc.collapsed .sum-acc-body {
+            display: none;
+        }
+
+        /* Body accordion Audit (mode Judul) diberi padding agar box temuan tidak menempel tepi. */
+        .sum-audit-body {
+            padding: 0 24px 20px;
+        }
+
+        /* Box Temuan (level tengah hierarki: Audit → Temuan → Rekomendasi) */
+        .sum-temuan {
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            background: var(--surface2);
+            padding: 13px 15px;
+            margin-top: 10px;
+        }
+
+        .sum-temuan:first-child {
+            margin-top: 0;
+        }
+
+        .sum-temuan-preview {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.45;
+            margin-top: 3px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sum-temuan .sum-acc-head:hover .sum-temuan-preview {
+            color: var(--tj-blue);
+        }
+
+        .sum-label {
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: .6px;
+            text-transform: uppercase;
+            color: var(--tj-blue);
+            margin-bottom: 5px;
+        }
+
+        /* Grid rekomendasi — hingga ~3 kolom di desktop lebar, 1 kolom di layar kecil (tanpa overflow) */
+        .sum-recs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .sum-rec {
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            padding: 16px 17px;
+            background: var(--surface2);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sum-rec-block .sum-label {
+            margin-bottom: 4px;
+        }
+
+        /* Penanggung jawab */
+        .sum-resp {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sum-resp-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .sum-resp-k {
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            color: var(--text2);
+        }
+
+        .sum-resp-v {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        /* Baris badge */
+        .sum-badges {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+        }
+
+        .sum-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 7px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .sum-b-green {
+            background: var(--green-light);
+            color: var(--green);
+            border-color: rgba(5, 150, 105, .2);
+        }
+
+        .sum-b-amber {
+            background: var(--amber-light);
+            color: var(--amber);
+            border-color: rgba(217, 119, 6, .2);
+        }
+
+        .sum-b-orange {
+            background: #FFF1E6;
+            color: #C2410C;
+            border-color: rgba(194, 65, 12, .2);
+        }
+
+        .sum-b-red {
+            background: var(--tj-red-light);
+            color: var(--tj-red);
+            border-color: rgba(227, 29, 40, .2);
+        }
+
+        .sum-b-gray {
+            background: var(--surface3);
+            color: var(--text2);
+            border-color: var(--border);
+        }
+
+        .sum-b-blue {
+            background: var(--tj-blue-light);
+            color: var(--tj-blue);
+            border-color: rgba(0, 102, 179, .2);
+        }
+
+        /* Teks dgn line-break + clamp */
+        .sum-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text2);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .sum-text.clamped {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sum-more {
+            margin-top: 6px;
+            background: none;
+            border: none;
+            color: var(--tj-blue);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .sum-more:hover {
+            text-decoration: underline;
+        }
+
+        .sum-empty {
+            color: var(--text3);
+            font-style: italic;
+            font-size: 13px;
+        }
+
+        @media (max-width: 640px) {
+            .sum-hero {
+                padding: 24px 18px 22px;
+            }
+
+            .sum-hero h2 {
+                font-size: 21px;
+            }
+
+            .sum-searchbar {
+                flex-direction: column;
+            }
+
+            .sum-section,
+            .sum-audit-head {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════
+           LOG ACTIVITY / AUDIT TRAIL
+        ═══════════════════════════════════════════════════ */
+        .act-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .act-head h2 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -.4px;
+            color: var(--text);
+        }
+
+        .act-head .act-sub {
+            font-size: 12.5px;
+            color: var(--text3);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .act-head-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .act-updated {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text3);
+            white-space: nowrap;
+        }
+
+        /* Bar filter */
+        .act-filters {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            box-shadow: var(--shadow-xs);
+            padding: 14px 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 16px 0 20px;
+        }
+
+        .act-filters select {
+            min-width: 130px;
+        }
+
+        .act-filters .search-wrap {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .act-filters .search-wrap input {
+            width: 100%;
+        }
+
+        /* Timeline */
+        .act-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+            background: var(--surface3);
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            padding: 5px 15px;
+            margin: 18px 0 12px;
+        }
+
+        .act-date:first-child {
+            margin-top: 0;
+        }
+
+        .act-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--border2);
+            border-radius: var(--r);
+            box-shadow: var(--shadow-xs);
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: box-shadow .15s ease;
+        }
+
+        .act-card:hover {
+            box-shadow: var(--shadow-sm);
+        }
+
+        .act-card.act-approve {
+            border-left-color: var(--green);
+        }
+
+        .act-card.act-reject {
+            border-left-color: var(--tj-red);
+        }
+
+        .act-card.act-request {
+            border-left-color: var(--amber);
+        }
+
+        .act-card.act-edit {
+            border-left-color: var(--tj-blue);
+        }
+
+        .act-card.act-add {
+            border-left-color: var(--green);
+        }
+
+        .act-card.act-delete {
+            border-left-color: var(--tj-red);
+        }
+
+        .act-card-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 13px;
+            padding: 14px 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .act-card-head:hover {
+            background: var(--surface2);
+        }
+
+        .act-ico {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            background: var(--surface3);
+        }
+
+        .act-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .act-l1 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .act-user {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .act-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text3);
+        }
+
+        .act-l2 {
+            font-size: 12px;
+            color: var(--text2);
+            margin-top: 4px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .act-l2 .act-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--text3);
+        }
+
+        .act-l2 .act-judul {
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .act-summary {
+            font-size: 12px;
+            color: var(--text3);
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .act-detail-btn {
+            flex-shrink: 0;
+            background: var(--tj-blue-pale);
+            color: var(--tj-blue);
+            border: 1px solid rgba(0, 102, 179, .25);
+            border-radius: 99px;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: var(--t);
+            align-self: center;
+        }
+
+        .act-card-head:hover .act-detail-btn {
+            background: var(--tj-blue);
+            color: #fff;
+            border-color: var(--tj-blue);
+        }
+
+        .act-detail-chev {
+            display: inline-block;
+            transition: transform .18s ease;
+        }
+
+        .act-card.collapsed .act-detail-chev {
+            transform: rotate(-90deg);
+        }
+
+        .act-detail {
+            padding: 4px 16px 18px 67px;
+            border-top: 1px dashed var(--border);
+            margin-top: 2px;
+        }
+
+        .act-card.collapsed .act-detail {
+            display: none;
+        }
+
+        .act-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px 18px;
+            margin: 14px 0 4px;
+        }
+
+        .act-field .act-field-k {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            color: var(--text3);
+        }
+
+        .act-field .act-field-v {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-top: 2px;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* Daftar perubahan */
+        .act-changes {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .act-change {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+        }
+
+        .act-change-field {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text);
+            min-width: 120px;
+        }
+
+        .act-change-field::before {
+            content: '✓ ';
+            color: var(--green);
+        }
+
+        .act-change-vals {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .act-arrow {
+            color: var(--text3);
+            font-weight: 800;
+        }
+
+        .act-note {
+            font-size: 12.5px;
+            color: var(--text2);
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+        }
+
+        .act-empty {
+            text-align: center;
+            padding: 56px 24px;
+            color: var(--text3);
+        }
+
+        .act-empty .act-emoji {
+            font-size: 50px;
+            opacity: .5;
+        }
+
+        .act-empty p {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text2);
+            margin-top: 12px;
+        }
+
+        @media (max-width: 640px) {
+            .act-detail {
+                padding-left: 16px;
+            }
+
+            .act-filters select,
+            .act-filters .search-wrap {
+                flex: 1 1 100%;
+                min-width: 0;
+            }
         }
 
         /* ═══════════════════════════════════════════════════
@@ -2784,6 +3741,11 @@
             padding: 10px 12px;
         }
 
+        /* Sisakan ruang kanan untuk caret dropdown pada <select> mobile. */
+        .filter-panel-mobile select {
+            padding-right: 30px;
+        }
+
         /* ═══════════════════════════════════════════════════
    FAB
 ═══════════════════════════════════════════════════ */
@@ -3722,6 +4684,7 @@
                     updateStatus: (ri, status, actor) => fetch(API_BASE + '/data/status/' + ri, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, actor }) }).then(r => r.json()),
                     rejectCloseRequest: (ri, actor) => fetch(API_BASE + '/data/reject-close/' + ri, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actor }) }).then(r => r.json()),
                     deleteRow: (ri, actor) => { const q = actor ? '?actor=' + encodeURIComponent(JSON.stringify(actor)) : ''; return fetch(API_BASE + '/data/delete/' + ri + q, { method: 'DELETE' }).then(r => r.json()); },
+                    getActivityLog: () => fetch(API_BASE + '/data/activity-log').then(r => r.json()),
                     getUsers: () => fetch(API_BASE + '/users').then(r => r.json()),
                     addUser: (u, p, r, d, n) => fetch(API_BASE + '/users/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
                     updateUser: (u, p, r, d, n) => fetch(API_BASE + '/users/update/' + u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
@@ -3742,29 +4705,38 @@
                 page: 1, PAGE: 50, tab: 'dashboard',
                 sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
                 /* Kurva S: mode sumbu-X ('bulanan' | 'harian'). Pivot: state search & sort. */
-                sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' }
+                sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
+                /* Summary / Audit Explorer: mode pencarian, query, dan flag sudah-search. */
+                sumMode: 'judul', sumQuery: '', sumSearched: false,
+                /* Log Activity (Audit Trail): data + state filter/sort + timestamp fetch terakhir. */
+                actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDate: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
             };
 
             /* Tab Admin: Tidak ada actlog */
             var TABS_ADMIN = [
                 { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'summary', label: 'Summary', icon: '🧭' },
                 { id: 'data', label: 'Data Temuan', icon: '📋' },
                 { id: 'request', label: 'Request Close', icon: '🔔', badge: true },
+                { id: 'actlog', label: 'Log Activity', icon: '🕓' },   /* Audit Trail — khusus Admin */
                 { id: 'users', label: 'Users', icon: '👤' },
             ];
             var TABS_PIC = [
                 { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'summary', label: 'Summary', icon: '🧭' },
                 { id: 'data', label: 'Data Divisi Saya', icon: '📋' },
             ];
             /* Admin Audit KNKT: sama seperti Admin tapi tanpa tab Users (data sudah difilter server-side ke Jenis Pemeriksaan='KNKT'). */
             var TABS_ADMIN_KNKT = [
                 { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'summary', label: 'Summary', icon: '🧭' },
                 { id: 'data', label: 'Data Temuan', icon: '📋' },
                 { id: 'request', label: 'Request Close', icon: '🔔', badge: true },
             ];
             /* Manajemen: view-only monitoring — hanya Dashboard + Data Temuan, tanpa aksi tulis. */
             var TABS_MANAJEMEN = [
                 { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'summary', label: 'Summary', icon: '🧭' },
                 { id: 'data', label: 'Data Temuan', icon: '📋' },
             ];
             /* isAdminRole → menentukan tampilan "view admin" (semua data, chart admin, filter divisi, dsb.).
@@ -3870,11 +4842,14 @@
             function logout() {
                 stopIdleWatcher();
                 clearSession();
+                if (_actlogTimer) { clearInterval(_actlogTimer); _actlogTimer = null; }   // hentikan auto-refresh Log Activity
                 S = {
                     user: null, allRows: [], filtered: [], stats: null, editIdx: null, delIdx: null,
                     editUser: null, pending: [], page: 1, PAGE: 50, tab: 'dashboard',
                     sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
-                    sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' }
+                    sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
+                    sumMode: 'judul', sumQuery: '', sumSearched: false,
+                    actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDate: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
                 };
                 $('app').style.display = 'none'; $('loginPage').style.display = 'flex';
                 $('loginUser').value = ''; $('loginPass').value = ''; hideLoginErr();
@@ -3932,8 +4907,10 @@
             function switchTab(tab) {
                 S.tab = tab; buildNav(); destroyCharts();
                 if (tab === 'dashboard') renderDashboard();
+                else if (tab === 'summary') renderSummary();
                 else if (tab === 'data') { S.page = 1; renderTable(); }
                 else if (tab === 'request') renderRC();
+                else if (tab === 'actlog') renderActivityLog();
                 else if (tab === 'users') loadUsers();
             }
 
@@ -4642,6 +5619,12 @@
                 // Kategori kini memakai tombol (pill) bertumpu state S.tableKategori — sama seperti Dashboard.
                 katF = katF !== undefined ? katF : (S.tableKategori || '');
 
+                // Simpan fokus + posisi kursor search box agar TIDAK hilang saat tabel re-render
+                // akibat debounce ketika mengetik (perbaikan UX input yang buruk sebelumnya).
+                var _actEl = document.activeElement;
+                var _focusSearchId = (_actEl && (_actEl.id === 'srchInput' || _actEl.id === 'm_srchInput')) ? _actEl.id : null;
+                var _caret = _focusSearchId ? _actEl.selectionStart : null;
+
                 var isAdmin = isAdminRole(S.user.role), ql = q.toLowerCase();
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel — sembunyikan
                 // baris ber-status turunan 'Close' (Open & Proses tetap tampil). PIC tidak punya
@@ -4665,12 +5648,17 @@
                 var jenisSel = S.tableJenis;
 
                 // Filter status memakai STATUS TURUNAN (deriveStatus) → mendukung nilai 'Proses'.
-                S.filtered = S.allRows.filter(function (r) {
-                    var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No' ,'Temuan Pemeriksaan'].some(k => String(r[k] || '').toLowerCase().includes(ql));
+                // statScope = semua baris cocok filter TANPA menyembunyikan Close → dipakai untuk
+                // mini-card statistik (agar PIC pun melihat jumlah Close). S.filtered = daftar tabel
+                // (PIC menyembunyikan Close).
+                function _tblMatch(r) {
+                    var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No', 'Temuan Pemeriksaan'].some(function (k) { return String(r[k] || '').toLowerCase().includes(ql); });
                     var jOk = jenisSel.length === 0 || jenisSel.indexOf(String(r['Jenis Pemeriksaan'] || '')) >= 0;
                     var dSt = deriveStatus(r);
-                    return m && jOk && (!hideClose || dSt !== 'Close') && (!stF || dSt === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
-                });
+                    return m && jOk && (!stF || dSt === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
+                }
+                var statScope = S.allRows.filter(_tblMatch);
+                S.filtered = hideClose ? statScope.filter(function (r) { return deriveStatus(r) !== 'Close'; }) : statScope;
                 if (S.sortBy && S.sortDir) {
                     var dirMul = S.sortDir === 'asc' ? 1 : -1;
                     S.filtered = S.filtered.slice().sort(function (a, b) {
@@ -4732,29 +5720,26 @@
                         '</div>';
                   } }
 
-                // Mini-card ringkas (mengikuti hasil filter aktif):
-                //  - Jumlah unik Judul Penugasan (kolom 'Judul Audit')
-                //  - Total rekomendasi (jumlah baris hasil filter — sama seperti card Dashboard)
-                //  - Jumlah Open / Proses / Close (status turunan) — khusus role admin.
-                var uniqJudul = (function () { var set = {}; S.filtered.forEach(function (r) { var j = String(r['Judul Audit'] || '').trim(); if (j) set[j] = 1; }); return Object.keys(set).length; })();
-                var totalRek = S.filtered.length;
+                // Mini-card ringkas — dihitung dari statScope (termasuk Close) agar breakdown
+                // Open+Proses+Close = Total konsisten, dan PIC pun melihat jumlah Close
+                // meskipun baris Close tidak ditampilkan pada daftar tabel.
+                var uniqJudul = (function () { var set = {}; statScope.forEach(function (r) { var j = String(r['Judul Audit'] || '').trim(); if (j) set[j] = 1; }); return Object.keys(set).length; })();
+                var totalRek = statScope.length;
                 var stCount = { Open: 0, Proses: 0, Close: 0 };
-                S.filtered.forEach(function (r) { stCount[deriveStatus(r)]++; });
+                statScope.forEach(function (r) { stCount[deriveStatus(r)]++; });
                 function miniCard(bg, ico, val, lbl, valColor) {
                     return '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:' + bg + '">' + ico + '</div>' +
                         '<div><div class="dt-mini-val"' + (valColor ? ' style="color:' + valColor + '"' : '') + '>' + val + '</div>' +
                         '<div class="dt-mini-lbl">' + lbl + '</div></div></div>';
                 }
+                // Kartu status Open/Proses/Close kini tampil untuk SEMUA role (termasuk PIC).
                 var miniCards =
                     '<div class="dt-mini-cards">' +
                     miniCard('var(--tj-blue-light)', '📋', uniqJudul, 'Judul Penugasan (Unik)') +
                     miniCard('var(--surface3)', '📝', totalRek, 'Total Rekomendasi') +
-                    // Kartu status hanya untuk admin (PIC menyembunyikan baris Close → hitungan bisa membingungkan).
-                    (isAdmin
-                        ? miniCard('var(--amber-light)', '🟡', stCount.Open, 'Open', 'var(--amber)') +
-                          miniCard('var(--purple-light)', '🔄', stCount.Proses, 'Proses', 'var(--purple)') +
-                          miniCard('var(--green-light)', '✅', stCount.Close, 'Close', 'var(--green)')
-                        : '') +
+                    miniCard('var(--amber-light)', '🟡', stCount.Open, 'Open', 'var(--amber)') +
+                    miniCard('var(--purple-light)', '🔄', stCount.Proses, 'Proses', 'var(--purple)') +
+                    miniCard('var(--green-light)', '✅', stCount.Close, 'Close', 'var(--green)') +
                     '</div>';
 
                 function sortMeta(col) {
@@ -4840,6 +5825,12 @@
                     '<div class="data-cards" id="dataCards">' + mobileCards + '</div>' +
                     pg + '</div>'
                 );
+
+                // Kembalikan fokus + kursor ke search box supaya mengetik tetap mulus (tanpa terputus).
+                if (_focusSearchId) {
+                    var _fe = document.getElementById(_focusSearchId);
+                    if (_fe) { _fe.focus(); try { _fe.setSelectionRange(_caret, _caret); } catch (e) { } }
+                }
             }
 
             function toggleSortCol(col) {
@@ -4864,6 +5855,556 @@
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
             window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = canEdit(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
+
+            /* ══════════════════════════════════════
+               SUMMARY / AUDIT EXPLORER
+               ──────────────────────────────────────
+               Eksplorasi hubungan Audit → Temuan → Rekomendasi → Penanggung Jawab →
+               Status. Semua dihitung dari S.allRows (state) — TANPA request ulang Google
+               Sheets, TANPA hardcode nama audit/divisi/departemen/jenis. Filtering di frontend.
+               Komponen reusable: sumStat, sumRecCard, sumRespCard, sumText (clamp),
+               badge status/progress/due/request-close, sumAuditCard, sumFieldCard.
+            ══════════════════════════════════════ */
+
+            // Mode pencarian — field diambil dari kolom GSheet yang sudah ada (tidak di-hardcode nilainya).
+            var SUM_MODES = [
+                { id: 'judul',      label: 'Judul Audit', field: 'Judul Audit', ph: 'Ketik judul audit, mis. sebagian kata judul…' },
+                { id: 'divisi',     label: 'Divisi',      field: 'Divisi',      ph: 'Ketik nama divisi…' },
+                { id: 'departemen', label: 'Departemen',  field: 'Departemen',  ph: 'Ketik nama departemen…' }
+            ];
+            var _sumTextSeq = 0;
+            // Mode yang tersedia per role. PIC hanya punya satu divisi → mode 'divisi' tidak berguna, disembunyikan.
+            function sumAvailableModes() {
+                return (S.user && S.user.role === 'PIC') ? SUM_MODES.filter(function (m) { return m.id !== 'divisi'; }) : SUM_MODES;
+            }
+            function sumCurrentMode() {
+                var avail = sumAvailableModes();
+                return avail.filter(function (m) { return m.id === S.sumMode; })[0] || avail[0];
+            }
+
+            // Base data untuk Summary. Role PIC: sembunyikan rekomendasi ber-status Close.
+            function sumBaseRows() {
+                return (S.user && S.user.role === 'PIC')
+                    ? S.allRows.filter(function (r) { return deriveStatus(r) !== 'Close'; })
+                    : S.allRows;
+            }
+
+            /* ── Statistik global (dinamis dari dataset) ── */
+            function computeSumStats(rows) {
+                var au = {}, tm = {}, dv = {}, dp = {};
+                rows.forEach(function (r) {
+                    var j = String(r['Judul Audit'] || '').trim(); if (j) au[j] = 1;
+                    var t = String(r['Temuan Pemeriksaan'] || '').trim(); if (t) tm[(j || '?') + '||' + t] = 1;
+                    var d1 = String(r['Divisi'] || '').trim(); if (d1) dv[d1] = 1;
+                    var d2 = String(r['Departemen'] || '').trim(); if (d2) dp[d2] = 1;
+                });
+                // Jumlah Rekomendasi = jumlah baris (sama logika card 'Total Rekomendasi' Dashboard).
+                return { audit: Object.keys(au).length, temuan: Object.keys(tm).length, rekomendasi: rows.length, divisi: Object.keys(dv).length, departemen: Object.keys(dp).length };
+            }
+
+            /* ── Helper agregasi ── */
+            function sumFirstNonEmpty(rows, key) { for (var i = 0; i < rows.length; i++) { var v = String(rows[i][key] || '').trim(); if (v) return v; } return ''; }
+            function sumGroupBy(rows, key, emptyLabel) {
+                var map = {}, order = [];
+                rows.forEach(function (r) { var v = String(r[key] || '').trim() || emptyLabel; if (!map[v]) { map[v] = []; order.push(v); } map[v].push(r); });
+                return order.map(function (v) { return { key: v, recs: map[v] }; });
+            }
+
+            /* ── Badge highlight (BadgeStatus/Progress/DueDate) ── */
+            function sumBadgeProgress(p) { var v = Number(p) || 0; return '<span class="sum-badge ' + (v >= 100 ? 'sum-b-green' : 'sum-b-amber') + '">Progress ' + v + '%</span>'; }
+            // Ubah jumlah hari → teks manusiawi, mis. "5 hari", "1 bulan 12 hari" (1 bulan ≈ 30 hari).
+            function sumHumanizeDays(days) {
+                days = Math.abs(Math.round(days));
+                if (days < 30) return days + ' hari';
+                var bulan = Math.floor(days / 30), sisa = days % 30;
+                return bulan + ' bulan' + (sisa > 0 ? ' ' + sisa + ' hari' : '');
+            }
+            function sumBadgeDue(row) {
+                var raw = row['Due Date'];
+                if (!raw) return '<span class="sum-badge sum-b-gray">Due Date: —</span>';
+                var d = new Date(raw);
+                if (isNaN(d.getTime())) return '<span class="sum-badge sum-b-gray">Due: ' + escH(String(raw)) + '</span>';
+                var txt = fmtDate(raw);
+                if (deriveStatus(row) === 'Close') return '<span class="sum-badge sum-b-gray">Due: ' + txt + '</span>';
+                var days = Math.ceil((d.getTime() - new Date().getTime()) / 86400000);
+                if (days < 0) return '<span class="sum-badge sum-b-red">Due: ' + txt + ' • Terlewat ' + sumHumanizeDays(days) + '</span>';
+                if (days <= 14) return '<span class="sum-badge sum-b-orange">Due: ' + txt + ' • ' + days + ' hari lagi</span>';
+                return '<span class="sum-badge sum-b-gray">Due: ' + txt + '</span>';
+            }
+            // Status memakai badge turunan aplikasi (Open/Proses/Close) demi konsistensi seluruh app.
+            // Request Close sengaja TIDAK ditampilkan di card detail rekomendasi Summary.
+            function sumBadgesRow(row) { return '<div class="sum-badges">' + statusBadge(row) + sumBadgeProgress(row['Progres%']) + sumBadgeDue(row) + '</div>'; }
+
+            /* ── Teks panjang: tampilkan 3 baris, tombol Lihat Selengkapnya; pertahankan line break ── */
+            function sumText(text) {
+                var t = String(text || '').trim();
+                if (!t) return '<div class="sum-empty">—</div>';
+                var esc = escH(t); // escH tidak menyentuh "\n" → CSS white-space:pre-wrap merender baris
+                var isLong = t.length > 160 || t.split('\n').length > 3;
+                if (!isLong) return '<div class="sum-text">' + esc + '</div>';
+                var id = 'sumtx' + (_sumTextSeq++);
+                return '<div class="sum-text clamped" id="' + id + '">' + esc + '</div>' +
+                    '<button class="sum-more" onclick="toggleSumText(\'' + id + '\', this)">Lihat Selengkapnya ▾</button>';
+            }
+            function toggleSumText(id, btn) {
+                var el = document.getElementById(id); if (!el) return;
+                var stillClamped = el.classList.toggle('clamped');
+                btn.innerHTML = stillClamped ? 'Lihat Selengkapnya ▾' : 'Sembunyikan ▴';
+            }
+            // Buka/tutup accordion audit (default tertutup → hanya tampil judul).
+            function toggleSumAcc(headEl) { var item = headEl.closest ? headEl.closest('.sum-acc') : headEl.parentNode; if (item) item.classList.toggle('collapsed'); }
+            // Pil aksi kanan header → penanda jelas bisa dibuka/ditutup (label ganti otomatis via CSS).
+            function sumAccToggle(openLabel) {
+                return '<span class="sum-acc-toggle">' +
+                    '<span class="sum-acc-lbl-open">' + escH(openLabel) + '</span>' +
+                    '<span class="sum-acc-lbl-close">Tutup</span>' +
+                    '<span class="sum-acc-chev">▾</span></span>';
+            }
+
+            function sumStat(val, lbl) { return '<div class="sum-stat"><div class="sum-stat-val">' + val + '</div><div class="sum-stat-lbl">' + lbl + '</div></div>'; }
+
+            /* ── ResponsibilityCard: penanggung jawab = Divisi + Departemen ── */
+            function sumRespCard(row) {
+                return '<div class="sum-resp">' +
+                    '<div class="sum-resp-item"><span class="sum-resp-k">Divisi</span><span class="sum-resp-v">' + escH(row['Divisi'] || '—') + '</span></div>' +
+                    '<div class="sum-resp-item"><span class="sum-resp-k">Departemen</span><span class="sum-resp-v">' + escH(row['Departemen'] || '—') + '</span></div>' +
+                    '</div>';
+            }
+
+            /* ── RecommendationCard (reusable). opts.showTemuan untuk mode Divisi/Departemen ── */
+            function sumRecCard(row, opts) {
+                opts = opts || {};
+                var h = '<div class="sum-rec">';
+                if (opts.showTemuan) h += '<div class="sum-rec-block"><div class="sum-label">Temuan</div>' + sumText(row['Temuan Pemeriksaan']) + '</div>';
+                h += '<div class="sum-rec-block"><div class="sum-label">Rekomendasi</div>' + sumText(row['Rekomendasi']) + '</div>';
+                h += '<div class="sum-rec-block"><div class="sum-label">Penanggung Jawab</div>' + sumRespCard(row) + '</div>';
+                h += sumBadgesRow(row);
+                h += '<div class="sum-rec-block"><div class="sum-label">Tindak Lanjut</div>' + sumText(row['Tindak Lanjut']) + '</div>';
+                h += '<div class="sum-rec-block"><div class="sum-label">Tanggapan Auditee</div>' + sumText(row['Tanggapan Auditee']) + '</div>';
+                h += '</div>';
+                return h;
+            }
+
+            /* ── Box Temuan (accordion level tengah). Default tertutup → tampil ringkasan temuan;
+               klik → Uraian Temuan lengkap + kartu Rekomendasi. Dipakai di mode Judul & Divisi/Dept. ── */
+            function sumTemuanAccordions(rows) {
+                return sumGroupBy(rows, 'Temuan Pemeriksaan', '(Tanpa Temuan)').map(function (f, i) {
+                    return '<div class="sum-temuan sum-acc collapsed">' +
+                        '<div class="sum-acc-head" onclick="toggleSumAcc(this)">' +
+                        '<div style="min-width:0"><div class="sum-kicker">TEMUAN ' + (i + 1) + ' • ' + f.recs.length + ' rekomendasi</div>' +
+                        '<div class="sum-temuan-preview">' + escH(String(f.key)) + '</div></div>' +
+                        sumAccToggle('Lihat rekomendasi') +
+                        '</div>' +
+                        '<div class="sum-acc-body">' +
+                        '<div class="sum-rec-block"><div class="sum-label">Uraian Temuan</div>' + sumText(f.key) + '</div>' +
+                        '<div class="sum-recs">' + f.recs.map(function (r) { return sumRecCard(r, {}); }).join('') + '</div>' +
+                        '</div></div>';
+                }).join('');
+            }
+
+            /* ── AuditCard (mode Judul Audit): Audit → Temuan → Rekomendasi (hierarki accordion) ── */
+            function sumAuditCard(judul, rows) {
+                var jenis = sumFirstNonEmpty(rows, 'Jenis Pemeriksaan'), kategori = sumFirstNonEmpty(rows, 'Kategori Pemeriksaan'), tgl = sumFirstNonEmpty(rows, 'Tanggal Laporan');
+                var chips = '';
+                if (jenis) chips += '<span class="sum-chip">🔎 ' + escH(jenis) + '</span>';
+                if (kategori) chips += '<span class="sum-chip">🗂 ' + escH(kategori) + '</span>';
+                if (tgl) chips += '<span class="sum-chip">📅 ' + fmtDate(tgl) + '</span>';
+                // Accordion Audit: default tertutup (hanya judul + chip); klik → daftar box Temuan.
+                return '<div class="sum-audit sum-acc collapsed">' +
+                    '<div class="sum-audit-head sum-acc-head" onclick="toggleSumAcc(this)">' +
+                    '<div><div class="sum-kicker">AUDIT</div><div class="sum-audit-title">' + escH(judul) + '</div><div class="sum-chips">' + chips + '</div></div>' +
+                    sumAccToggle('Lihat temuan') +
+                    '</div>' +
+                    '<div class="sum-acc-body sum-audit-body">' + sumTemuanAccordions(rows) + '</div></div>';
+            }
+
+            /* ── FieldRootCard (mode Divisi / Departemen): root + rekomendasi dikelompokkan per Judul Audit ── */
+            function sumFieldCard(fieldLabel, name, rows) {
+                // Baris angka (metrik) per-card dihapus — sudah diwakili kartu statistik di atas.
+                // Tiap Judul Audit = accordion (default tertutup → hanya judul); klik → box Temuan,
+                // lalu klik Temuan → Rekomendasi (hierarki sama seperti mode Judul Audit).
+                var groups = sumGroupBy(rows, 'Judul Audit', '(Tanpa Judul)').map(function (g) {
+                    var tgl = sumFirstNonEmpty(g.recs, 'Tanggal Laporan');
+                    return '<div class="sum-section sum-acc collapsed">' +
+                        '<div class="sum-acc-head" onclick="toggleSumAcc(this)">' +
+                        '<div><div class="sum-kicker">AUDIT</div>' +
+                        '<div class="sum-section-title">' + escH(g.key) + (tgl ? ' &nbsp;<span class="sum-chip">📅 ' + fmtDate(tgl) + '</span>' : '') + '</div></div>' +
+                        sumAccToggle('Lihat temuan') +
+                        '</div>' +
+                        '<div class="sum-acc-body">' + sumTemuanAccordions(g.recs) + '</div>' +
+                        '</div>';
+                }).join('');
+                return '<div class="sum-audit">' +
+                    '<div class="sum-audit-head"><div class="sum-kicker">' + escH(String(fieldLabel).toUpperCase()) + '</div><div class="sum-audit-title">' + escH(name) + '</div></div>' +
+                    groups + '</div>';
+            }
+
+            /* ── Cari sesuai mode & query ──
+               all     : semua baris yang cocok (termasuk Close) → dipakai untuk STATISTIK
+                         agar untuk PIC angka tetap mencakup Close.
+               display : baris yang ditampilkan sebagai kartu (PIC menyembunyikan Close). */
+            function sumMatch() {
+                var mode = sumCurrentMode();
+                var q = String(S.sumQuery || '').trim().toLowerCase();
+                if (!q) return { mode: mode, q: '', all: [], display: [] };
+                // Nilai berasal dari dropdown (terkontrol) → cocokkan secara EKSAK, bukan substring.
+                var all = S.allRows.filter(function (r) { return String(r[mode.field] || '').trim().toLowerCase() === q; });
+                var display = (S.user && S.user.role === 'PIC') ? all.filter(function (r) { return deriveStatus(r) !== 'Close'; }) : all;
+                return { mode: mode, q: q, all: all, display: display };
+            }
+
+            /* ── Susun hasil pencarian ── */
+            function sumBuildResults() {
+                var mode = sumCurrentMode();
+                if (!S.sumSearched || !String(S.sumQuery || '').trim()) {
+                    return '<div class="sum-empty-state"><div class="sum-emoji">🧭</div>' +
+                        '<p>Silakan pilih jenis pencarian, lalu pilih nilai dari dropdown untuk mulai menjelajahi data audit.</p>' +
+                        '<small>Saat ini mode: Cari berdasarkan ' + escH(mode.label) + '.</small></div>';
+                }
+                var m = sumMatch();
+                if (m.all.length === 0) {
+                    return '<div class="sum-empty-state"><div class="sum-emoji">🔍</div>' +
+                        '<p>Data tidak ditemukan.</p><small>Periksa kembali kata kunci yang dimasukkan.</small></div>';
+                }
+                if (m.display.length === 0) {
+                    // PIC: semua baris yang cocok berstatus Close (disembunyikan) — beri info yang jelas.
+                    return '<div class="sum-empty-state"><div class="sum-emoji">✅</div>' +
+                        '<p>Semua rekomendasi yang cocok sudah berstatus Close.</p>' +
+                        '<small>Rekomendasi berstatus Close tidak ditampilkan untuk peran Anda, namun tetap dihitung pada ringkasan di atas.</small></div>';
+                }
+                if (mode.id === 'judul') {
+                    return '<div class="sum-results">' + sumGroupBy(m.display, 'Judul Audit', '(Tanpa Judul)').map(function (g) { return sumAuditCard(g.key, g.recs); }).join('') + '</div>';
+                }
+                return '<div class="sum-results">' + sumGroupBy(m.display, mode.field, '(Tanpa ' + mode.label + ')').map(function (g) { return sumFieldCard(mode.label, g.key, g.recs); }).join('') + '</div>';
+            }
+
+            /* ── Render halaman Summary ── */
+            function renderSummary() {
+                // Normalisasi mode bila tidak tersedia untuk role ini (mis. PIC + 'divisi').
+                if (!sumAvailableModes().some(function (m) { return m.id === S.sumMode; })) S.sumMode = sumAvailableModes()[0].id;
+                var mode = sumCurrentMode();
+                var searched = S.sumSearched && String(S.sumQuery || '').trim() !== '';
+                var modesHtml = sumAvailableModes().map(function (m) {
+                    return '<button class="sum-mode' + (m.id === S.sumMode ? ' active' : '') + '" onclick="setSumMode(\'' + m.id + '\')"><span class="sum-radio"></span>Cari berdasarkan ' + escH(m.label) + '</button>';
+                }).join('');
+                // Statistik ringkas: dihitung dari HASIL PENCARIAN (m.all), bukan seluruh dataset,
+                // sehingga angka sesuai dengan input user. Untuk PIC tetap memakai m.all (termasuk
+                // Close) agar angka mencakup Close walau kartu Close disembunyikan.
+                // Kartu yang ditampilkan menyesuaikan MODE pencarian:
+                //   judul      → Audit, Temuan, Rekomendasi, Divisi, Departemen
+                //   divisi     → Audit, Temuan, Rekomendasi, Departemen
+                //   departemen → Audit, Temuan, Rekomendasi
+                var statsSection = '';
+                if (searched) {
+                    var m = sumMatch();
+                    if (m.all.length > 0) {
+                        var stats = computeSumStats(m.all);
+                        var cards = sumStat(stats.audit, 'Jumlah Audit') + sumStat(stats.temuan, 'Jumlah Temuan') + sumStat(stats.rekomendasi, 'Jumlah Rekomendasi');
+                        if (mode.id === 'judul') cards += sumStat(stats.divisi, 'Jumlah Divisi') + sumStat(stats.departemen, 'Jumlah Departemen');
+                        else if (mode.id === 'divisi') cards += sumStat(stats.departemen, 'Jumlah Departemen');
+                        statsSection =
+                            '<div class="sum-stats-cap">📊 Ringkasan hasil pencarian ' + escH(mode.label) + ': “' + escH(S.sumQuery) + '”</div>' +
+                            '<div class="sum-stats">' + cards + '</div>';
+                    }
+                }
+                // Opsi dropdown = daftar nilai unik dari kolom sesuai MODE (Judul Audit/Divisi/
+                // Departemen), diambil dinamis dari dataset (tanpa hardcode).
+                var optSet = {};
+                S.allRows.forEach(function (r) { var v = String(r[mode.field] || '').trim(); if (v) optSet[v] = 1; });
+                var optList = Object.keys(optSet).sort(function (a, b) { return a.localeCompare(b); });
+                var optionsHtml = '<option value="">— Pilih ' + escH(mode.label) + ' —</option>' +
+                    optList.map(function (v) { return '<option value="' + escH(v) + '"' + (S.sumQuery === v ? ' selected' : '') + '>' + escH(v) + '</option>'; }).join('');
+                var hero = '<div class="sum-hero">' +
+                    '<h2>🧭 Audit Explorer</h2>' +
+                    '<div class="sum-sub">Pilih salah satu cara untuk menjelajahi data audit.</div>' +
+                    '<div class="sum-modes">' + modesHtml + '</div>' +
+                    '<div class="sum-select-hint">🔽 Pilih ' + escH(mode.label) + ' dari daftar dropdown:</div>' +
+                    '<div class="sum-searchbar"><div class="sum-select-wrap">' +
+                    '<select id="sumSelect" class="sum-select" onchange="doSummarySelect(this.value)">' + optionsHtml + '</select>' +
+                    '<span class="sum-select-caret">▼</span>' +
+                    '</div></div></div>';
+                _sumTextSeq = 0;
+                showMain('<div class="sum-wrap">' + hero + statsSection + sumBuildResults() + '</div>');
+            }
+            // Ganti mode → reset pilihan (nilai dropdown berbeda antar mode).
+            function setSumMode(m) { S.sumMode = m; S.sumQuery = ''; S.sumSearched = false; renderSummary(); }
+            // Pilih nilai dari dropdown → langsung tampilkan hasil (kosong = kembali ke empty state).
+            function doSummarySelect(v) { S.sumQuery = v || ''; S.sumSearched = !!String(v || '').trim(); renderSummary(); }
+
+            /* ══════════════════════════════════════
+               LOG ACTIVITY / AUDIT TRAIL  (khusus Admin)
+               ──────────────────────────────────────
+               Sumber: sheet "Activity Log" (kolom: Timestamp, Username, Nama, Role, Action,
+               No, Judul Audit, Rekomendasi, Divisi, Keterangan). Semua filter/agregasi di
+               frontend dari data yang sudah di-load (S.actlog.data). Tanpa hardcode.
+               Komponen reusable: computeActStats, actActionMeta/Badge, parseActChanges,
+               actChangeItem/Value, actCard, actDetailGrid, actSummaryLine.
+            ══════════════════════════════════════ */
+            var _actlogTimer = null;
+            var ACT_MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            function parseActTs(s) {
+                s = String(s || '').trim();
+                var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                if (m) return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0));
+                var d = new Date(s);
+                return isNaN(d.getTime()) ? null : d;
+            }
+            function _p2(n) { return String(n).padStart(2, '0'); }
+            function actDateKey(d) { return d ? (d.getFullYear() + '-' + _p2(d.getMonth() + 1) + '-' + _p2(d.getDate())) : '_'; }
+            function actDateLabel(d) { return d ? (d.getDate() + ' ' + ACT_MONTHS_ID[d.getMonth()] + ' ' + d.getFullYear()) : 'Tanpa Tanggal'; }
+            function actTimeLabel(d) { return d ? (_p2(d.getHours()) + ':' + _p2(d.getMinutes())) : '--:--'; }
+            function actFieldLabel(f) { var s = String(f || '').trim(); return /progres|progress/i.test(s) ? 'Progress' : s; }
+
+            /* Ikon + warna per jenis aktivitas (dipetakan dari nilai Action pada data). */
+            function actActionMeta(action) {
+                var a = String(action || '').toLowerCase();
+                if (a.indexOf('approve') >= 0) return { icon: '✅', cls: 'act-approve', badge: 'sum-b-green' };
+                if (a.indexOf('reject') >= 0) return { icon: '⛔', cls: 'act-reject', badge: 'sum-b-red' };
+                if (a.indexOf('request close') >= 0) return { icon: '🔔', cls: 'act-request', badge: 'sum-b-orange' };
+                if (a.indexOf('reopen') >= 0) return { icon: '↩️', cls: 'act-request', badge: 'sum-b-orange' };
+                if (a.indexOf('tambah') >= 0 || a.indexOf('add') >= 0) return { icon: '➕', cls: 'act-add', badge: 'sum-b-green' };
+                if (a.indexOf('hapus') >= 0 || a.indexOf('delete') >= 0) return { icon: '🗑️', cls: 'act-delete', badge: 'sum-b-red' };
+                if (a.indexOf('edit') >= 0) return { icon: '✏️', cls: 'act-edit', badge: 'sum-b-blue' };
+                if (a.indexOf('login') >= 0) return { icon: '🔑', cls: 'act-edit', badge: 'sum-b-blue' };
+                return { icon: '📝', cls: '', badge: 'sum-b-gray' };
+            }
+            function actActionBadge(action) { return '<span class="sum-badge ' + actActionMeta(action).badge + '">' + escH(String(action || '—')) + '</span>'; }
+
+            /* Parse kolom Keterangan → daftar perubahan {field, from, to} + catatan bebas. */
+            function parseActChanges(ket) {
+                ket = String(ket || '').trim();
+                var items = [], notes = [];
+                if (!ket) return { items: items, notes: notes };
+                ket.split(' | ').forEach(function (p) {
+                    var m = p.match(/^(.+?):\s*"([\s\S]*?)"\s*(?:→|->)\s*"([\s\S]*?)"$/);
+                    if (m) items.push({ field: m[1].trim(), from: m[2], to: m[3] });
+                    else if (p.trim()) notes.push(p.trim());
+                });
+                return { items: items, notes: notes };
+            }
+
+            /* Badge nilai per field (Status/Progress/Due Date/Request Close/Link Evidence). */
+            function actChangeValue(rawField, val) {
+                var f = String(rawField || '').toLowerCase();
+                var v = String(val == null ? '' : val).trim();
+                if (f.indexOf('progres') >= 0 || f.indexOf('progress') >= 0) { var n = Number(v) || 0; return '<span class="sum-badge ' + (n >= 100 ? 'sum-b-green' : 'sum-b-amber') + '">' + n + '%</span>'; }
+                if (f === 'status') { if (v === 'Close') return '<span class="sum-badge sum-b-green">Close</span>'; if (v === 'Open') return '<span class="sum-badge sum-b-red">Open</span>'; return '<span class="sum-badge sum-b-gray">' + escH(v || '—') + '</span>'; }
+                if (f.indexOf('due date') >= 0 || f.indexOf('tanggal') >= 0) { return '<span class="sum-badge sum-b-blue">' + escH(v ? fmtDate(v) : '—') + '</span>'; }
+                if (f.indexOf('evidence') >= 0 || f.indexOf('link') >= 0) { if (!v) return '<span class="sum-badge sum-b-gray">—</span>'; return '<a href="' + escH(v) + '" target="_blank" style="color:var(--tj-blue);text-decoration:underline;word-break:break-all;font-size:12px">🔗 ' + escH(v.length > 40 ? v.slice(0, 40) + '…' : v) + '</a>'; }
+                if (f.indexOf('request close') >= 0) { if (v === 'Ya') return '<span class="sum-badge sum-b-green">Ya</span>'; return '<span class="sum-badge sum-b-gray">' + escH(v || '—') + '</span>'; }
+                return v ? '<span style="font-size:12.5px;font-weight:600;color:var(--text)">' + escH(v) + '</span>' : '<span style="color:var(--text3);font-size:12.5px">(kosong)</span>';
+            }
+            function actChangeItem(rawField, from, to) {
+                var label = actFieldLabel(rawField), f = String(rawField || '').toLowerCase();
+                if (f.indexOf('evidence') >= 0 || f.indexOf('link') >= 0) {
+                    if (!String(from || '').trim() && String(to || '').trim()) {
+                        return '<div class="act-change"><span class="act-change-field">' + escH(label) + '</span><span class="act-change-vals"><span class="sum-badge sum-b-green">Ditambahkan</span>' + actChangeValue(rawField, to) + '</span></div>';
+                    }
+                }
+                return '<div class="act-change"><span class="act-change-field">' + escH(label) + '</span><span class="act-change-vals">' + actChangeValue(rawField, from) + '<span class="act-arrow">→</span>' + actChangeValue(rawField, to) + '</span></div>';
+            }
+
+            /* Ringkasan perubahan (collapsed). */
+            function actSummaryLine(l) {
+                var ch = parseActChanges(l['Keterangan']);
+                if (ch.items.length) { var fs = ch.items.map(function (it) { return actFieldLabel(it.field); }); return '✏️ ' + fs.slice(0, 4).join(', ') + (fs.length > 4 ? ' +' + (fs.length - 4) + ' lainnya' : ''); }
+                if (ch.notes.length) return ch.notes.join(' • ');
+                return 'Tidak ada rincian perubahan';
+            }
+
+            /* Statistik ringkas (dari data terfilter). */
+            function computeActStats(logs) {
+                var users = {}, req = 0, app = 0, rej = 0;
+                logs.forEach(function (l) {
+                    var u = String(l['Username'] || '').trim(); if (u) users[u] = 1;
+                    var act = String(l['Action'] || '').trim().toLowerCase();
+                    if (act === 'approve close') app++;
+                    if (act === 'reject close') rej++;
+                    // Request Close: Action='Request Close' ATAU perubahan Request Close → "Ya" (Edit PIC).
+                    if (act === 'request close') req++;
+                    else if (parseActChanges(l['Keterangan']).items.some(function (it) { return /request close/i.test(it.field) && String(it.to || '').trim().toLowerCase() === 'ya'; })) req++;
+                });
+                return { total: logs.length, users: Object.keys(users).length, req: req, app: app, rej: rej };
+            }
+
+            /* ── Fetch (sekali di awal / manual refresh / auto 60s saat tab aktif & terlihat) ── */
+            function fetchActivityLog(cb, silent) {
+                var a = S.actlog;
+                if (a.loading) return;
+                a.loading = true;
+                if (!silent && !a.loaded) showMain('<div class="loading-state"><span class="spinner spinner-dark"></span> Memuat log aktivitas…</div>');
+                API.getActivityLog().then(function (r) {
+                    a.loading = false;
+                    if (!r || r.error) { if (!silent) showErrBox('Gagal memuat log aktivitas', r ? r.error : 'Null response'); return; }
+                    a.data = (r.logs || []).map(function (l, i) { l._aid = i; return l; });
+                    a.loaded = true; a.lastFetch = new Date();
+                    if (cb) cb();
+                }).catch(function (e) { a.loading = false; if (!silent) showErrBox('Koneksi gagal', e.message || 'Unknown'); });
+            }
+            function refreshActivityLog() {
+                var btn = document.getElementById('actRefreshBtn');
+                if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Memuat…'; }
+                fetchActivityLog(function () { renderActivityLog(); }, true);
+            }
+            function startActlogAutoRefresh() {
+                if (_actlogTimer) return;
+                _actlogTimer = setInterval(function () {
+                    if (S.user && S.tab === 'actlog' && document.visibilityState === 'visible' && !S.actlog.loading) {
+                        fetchActivityLog(function () { if (S.tab === 'actlog') renderActivityLog(); }, true);
+                    }
+                }, 60000);
+            }
+            function toggleActDetail(aid) {
+                var el = document.getElementById('actcard-' + aid);
+                if (!el) return;
+                var nowCollapsed = el.classList.toggle('collapsed');
+                S.actlog.expanded[aid] = !nowCollapsed;
+            }
+            function applyActFilters() {
+                var a = S.actlog, g = function (id) { var e = document.getElementById(id); return e ? e.value : ''; };
+                a.fltDate = g('actFltDate'); a.fltUser = g('actFltUser'); a.fltRole = g('actFltRole');
+                a.fltAction = g('actFltAction'); a.fltJudul = g('actFltJudul'); a.fltDivisi = g('actFltDivisi');
+                a.search = g('actSearch'); a.sort = g('actSort') || 'desc';
+                renderActivityLog();
+            }
+            function clearActFilters() {
+                var a = S.actlog;
+                a.fltDate = a.fltUser = a.fltRole = a.fltAction = a.fltJudul = a.fltDivisi = a.search = '';
+                a.sort = 'desc';
+                renderActivityLog();
+            }
+
+            /* ── Kartu aktivitas + detail (inline expand) ── */
+            function actDetailGrid(l, d) {
+                function fld(k, v) { return '<div class="act-field"><div class="act-field-k">' + k + '</div><div class="act-field-v">' + v + '</div></div>'; }
+                var tgl = d ? (actDateLabel(d) + ' • ' + _p2(d.getHours()) + ':' + _p2(d.getMinutes()) + ':' + _p2(d.getSeconds())) : escH(String(l['Timestamp'] || '—'));
+                var g = '<div class="act-detail-grid">' +
+                    fld('Tanggal & Jam', escH(tgl)) + fld('Username', escH(l['Username'] || '—')) + fld('Role', escH(l['Role'] || '—')) +
+                    fld('Action', actActionBadge(l['Action'])) + fld('ID', escH(String(l['No'] || '—'))) +
+                    fld('Judul Audit', escH(l['Judul Audit'] || '—')) + fld('Divisi', escH(l['Divisi'] || '—')) + '</div>';
+                var rek = String(l['Rekomendasi'] || '').trim();
+                if (rek) g += '<div class="act-field" style="margin-top:8px"><div class="act-field-k">Rekomendasi</div><div class="act-field-v">' + escH(rek) + '</div></div>';
+                return g;
+            }
+            function actDetailChanges(l) {
+                var ch = parseActChanges(l['Keterangan']);
+                if (!ch.items.length && !ch.notes.length) return '<div class="act-note">Tidak ada rincian perubahan.</div>';
+                return ch.items.map(function (it) { return actChangeItem(it.field, it.from, it.to); }).join('') +
+                    ch.notes.map(function (n) { return '<div class="act-note">📌 ' + escH(n) + '</div>'; }).join('');
+            }
+            function actCard(l, aid) {
+                var d = parseActTs(l['Timestamp']), meta = actActionMeta(l['Action']);
+                var collapsed = !S.actlog.expanded[aid];
+                var idTxt = String(l['No'] || '').trim();
+                var head = '<div class="act-card-head" onclick="toggleActDetail(' + aid + ')">' +
+                    '<div class="act-ico">' + meta.icon + '</div>' +
+                    '<div class="act-main">' +
+                    '<div class="act-l1"><span class="act-user">' + escH(l['Nama'] || l['Username'] || '—') + '</span><span class="sum-badge sum-b-gray">' + escH(l['Role'] || '—') + '</span>' + actActionBadge(l['Action']) + '<span class="act-time">🕘 ' + actTimeLabel(d) + '</span></div>' +
+                    '<div class="act-l2">' + (idTxt ? '<span class="act-id">#' + escH(idTxt) + '</span>' : '') + (l['Judul Audit'] ? '<span class="act-judul">' + escH(l['Judul Audit']) + '</span>' : '') + (l['Divisi'] ? '<span>· ' + escH(l['Divisi']) + '</span>' : '') + '</div>' +
+                    '<div class="act-summary">' + escH(actSummaryLine(l)) + '</div>' +
+                    '</div>' +
+                    '<button class="act-detail-btn" onclick="event.stopPropagation();toggleActDetail(' + aid + ')">Lihat Detail <span class="act-detail-chev">▾</span></button>' +
+                    '</div>';
+                var detail = '<div class="act-detail">' + actDetailGrid(l, d) +
+                    '<div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin:14px 0 8px">Perubahan Lengkap</div>' +
+                    '<div class="act-changes">' + actDetailChanges(l) + '</div></div>';
+                return '<div class="act-card ' + meta.cls + (collapsed ? ' collapsed' : '') + '" id="actcard-' + aid + '">' + head + detail + '</div>';
+            }
+
+            /* ── Render halaman ── */
+            function renderActivityLog() {
+                var a = S.actlog;
+                if (!a.loaded) { fetchActivityLog(function () { renderActivityLog(); }); return; }
+                startActlogAutoRefresh();
+                var logs = a.data;
+
+                function distinct(field) { var set = {}; logs.forEach(function (l) { var v = String(l[field] || '').trim(); if (v) set[v] = 1; }); return Object.keys(set).sort(); }
+                var users = distinct('Username'), roles = distinct('Role'), actions = distinct('Action'), juduls = distinct('Judul Audit'), divisis = distinct('Divisi');
+                var dateMap = {};
+                logs.forEach(function (l) { var d = parseActTs(l['Timestamp']); if (d) dateMap[actDateKey(d)] = actDateLabel(d); });
+                var dateKeys = Object.keys(dateMap).sort().reverse();
+
+                var q = String(a.search || '').trim().toLowerCase();
+                // PERFORMA: default HANYA 7 hari terakhir (data lama tidak dirender).
+                // Batas 7 hari dilepas begitu user memakai filter apa pun (termasuk search) —
+                // sehingga data lama hanya dimuat saat benar-benar dicari.
+                var filtersActive = !!(a.fltDate || a.fltUser || a.fltRole || a.fltAction || a.fltJudul || a.fltDivisi || q);
+                var weekAgo = Date.now() - 7 * 86400000;
+                var filtered = logs.filter(function (l) {
+                    var d = parseActTs(l['Timestamp']); var dk = d ? actDateKey(d) : '';
+                    if (!filtersActive) { if (!d || d.getTime() < weekAgo) return false; }  // scope default: 7 hari terakhir
+                    if (a.fltDate && dk !== a.fltDate) return false;
+                    if (a.fltUser && String(l['Username'] || '') !== a.fltUser) return false;
+                    if (a.fltRole && String(l['Role'] || '') !== a.fltRole) return false;
+                    if (a.fltAction && String(l['Action'] || '') !== a.fltAction) return false;
+                    if (a.fltJudul && String(l['Judul Audit'] || '') !== a.fltJudul) return false;
+                    if (a.fltDivisi && String(l['Divisi'] || '') !== a.fltDivisi) return false;
+                    if (q) {
+                        var hay = [l['Username'], l['Nama'], l['Judul Audit'], l['Divisi'], l['Rekomendasi'], l['No']].map(function (x) { return String(x || '').toLowerCase(); }).join(' | ');
+                        if (hay.indexOf(q) < 0) return false;
+                    }
+                    return true;
+                });
+
+                var rows = filtered.map(function (l) { return { l: l, d: parseActTs(l['Timestamp']) }; });
+                rows.sort(function (x, y) { var tx = x.d ? x.d.getTime() : 0, ty = y.d ? y.d.getTime() : 0; return a.sort === 'asc' ? (tx - ty) : (ty - tx); });
+
+                var st = computeActStats(filtered);
+                var upd = a.lastFetch ? (_p2(a.lastFetch.getHours()) + ':' + _p2(a.lastFetch.getMinutes()) + ':' + _p2(a.lastFetch.getSeconds())) : '—';
+
+                var scopeSub = filtersActive
+                    ? 'Menampilkan hasil sesuai filter (seluruh periode)'
+                    : 'Menampilkan aktivitas 7 hari terakhir — gunakan filter/pencarian untuk melihat data lebih lama';
+                var header = '<div class="act-head">' +
+                    '<div><h2>🕓 Log Activity — Audit Trail</h2><div class="act-sub">' + scopeSub + '</div></div>' +
+                    '<div class="act-head-right"><span class="act-updated">🕘 Terakhir diperbarui: ' + upd + '</span>' +
+                    '<button class="btn btn-ghost btn-sm" id="actRefreshBtn" onclick="refreshActivityLog()">🔄 Refresh</button></div></div>';
+
+                var statsHtml = '<div class="sum-stats">' +
+                    sumStat(st.total, 'Total Aktivitas') + sumStat(st.users, 'User Aktif') + sumStat(st.req, 'Request Close') +
+                    sumStat(st.app, 'Approve Close') + sumStat(st.rej, 'Reject Close') + '</div>';
+
+                function opt(list, sel, ph) { return '<option value="">' + ph + '</option>' + list.map(function (v) { return '<option value="' + escH(v) + '"' + (sel === v ? ' selected' : '') + '>' + escH(v) + '</option>'; }).join(''); }
+                var dateOpts = '<option value="">Semua Tanggal</option>' + dateKeys.map(function (k) { return '<option value="' + escH(k) + '"' + (a.fltDate === k ? ' selected' : '') + '>' + escH(dateMap[k]) + '</option>'; }).join('');
+                var filters = '<div class="act-filters">' +
+                    '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="actSearch" placeholder="Cari username, judul, divisi, rekomendasi, ID…" value="' + escH(a.search || '') + '" style="padding-left:34px" onkeydown="if(event.key===\'Enter\'){event.preventDefault();applyActFilters();}"/></div>' +
+                    '<button class="btn btn-primary btn-sm" onclick="applyActFilters()">🔍 Cari</button>' +
+                    '<select id="actFltDate" onchange="applyActFilters()">' + dateOpts + '</select>' +
+                    '<select id="actFltUser" onchange="applyActFilters()">' + opt(users, a.fltUser, 'Semua User') + '</select>' +
+                    '<select id="actFltRole" onchange="applyActFilters()">' + opt(roles, a.fltRole, 'Semua Role') + '</select>' +
+                    '<select id="actFltAction" onchange="applyActFilters()">' + opt(actions, a.fltAction, 'Semua Aktivitas') + '</select>' +
+                    '<select id="actFltJudul" onchange="applyActFilters()">' + opt(juduls, a.fltJudul, 'Semua Judul Audit') + '</select>' +
+                    '<select id="actFltDivisi" onchange="applyActFilters()">' + opt(divisis, a.fltDivisi, 'Semua Divisi') + '</select>' +
+                    '<select id="actSort" onchange="applyActFilters()"><option value="desc"' + (a.sort !== 'asc' ? ' selected' : '') + '>Terbaru dulu</option><option value="asc"' + (a.sort === 'asc' ? ' selected' : '') + '>Terlama dulu</option></select>' +
+                    '<button class="btn btn-ghost btn-sm" onclick="clearActFilters()">✕ Reset</button>' +
+                    '</div>';
+
+                var timeline = '';
+                if (rows.length === 0) {
+                    var emptyMsg = (a.data.length === 0)
+                        ? 'Belum terdapat aktivitas.'
+                        : (filtersActive
+                            ? 'Tidak ditemukan aktivitas yang sesuai.'
+                            : 'Belum ada aktivitas dalam 7 hari terakhir.');
+                    var emptyHint = (!filtersActive && a.data.length > 0)
+                        ? '<small>Gunakan filter atau pencarian untuk melihat aktivitas yang lebih lama.</small>'
+                        : '';
+                    timeline = '<div class="act-empty"><div class="act-emoji">🗂️</div><p>' + emptyMsg + '</p>' + emptyHint + '</div>';
+                } else {
+                    var lastKey = null;
+                    rows.forEach(function (row) {
+                        var dk = row.d ? actDateKey(row.d) : '_';
+                        if (dk !== lastKey) { timeline += '<div class="act-date">🗓️ ' + escH(row.d ? actDateLabel(row.d) : 'Tanpa Tanggal') + '</div>'; lastKey = dk; }
+                        timeline += actCard(row.l, row.l._aid);
+                    });
+                }
+
+                // Simpan fokus search agar tidak hilang saat re-render.
+                var af = document.activeElement, afId = (af && af.id === 'actSearch') ? af.id : null, afCaret = afId ? af.selectionStart : null;
+                showMain('<div class="sum-wrap">' + header + statsHtml + filters + '<div id="actTimeline">' + timeline + '</div></div>');
+                if (afId) { var fe = document.getElementById(afId); if (fe) { fe.focus(); try { fe.setSelectionRange(afCaret, afCaret); } catch (e) { } } }
+            }
 
             /* ══════════════════════════════════════
                REQUEST CLOSE
@@ -4941,7 +6482,7 @@
                     if (['Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Tanggapan Auditee', 'Catatan'].includes(c)) return '<div class="form-col full"><span class="form-label">' + c + (c === 'Rekomendasi' || c === 'Temuan Pemeriksaan' ? ' <span class="req">*</span>' : '') + '</span><textarea id="ae_' + c + '" rows="3">' + escH(String(v)) + '</textarea></div>';
                     if (c === 'Progres%') return fc(c, '<input type="number" id="ae_' + c + '" min="0" max="100" value="' + escH(String(v || 0)) + '"/>');
                     if (['Tanggal Laporan', 'Due Date', 'Tanggal Close'].includes(c)) return fc(c, '<input type="date" id="ae_' + c + '" value="' + fmtDateInp(v) + '"/>');
-                    if (c === 'Link Evidence') return '<div class="form-col full"><span class="form-label">' + c + '</span><input type="text" id="ae_' + c + '" placeholder="https://drive.google.com/…" value="' + escH(String(v)) + '"/></div>';
+                    if (c === 'Link Evidence') return '<div class="form-col full"><span class="form-label">' + c + '</span><input type="text" id="ae_' + c + '" placeholder="https://drive.google.com/… (Pastikan link dapat diakses admin SPI)" value="' + escH(String(v)) + '"/></div>';
                     if (c === 'Judul Audit') return '<div class="form-col full"><span class="form-label">' + c + ' <span class="req">*</span></span><input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '"/></div>';
                     return fc(c, '<input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '"/>');
                 });
