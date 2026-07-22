@@ -1617,6 +1617,49 @@
             width: 100%;
         }
 
+        /* Filter tanggal berbasis kalender (rentang / tanggal tertentu) */
+        .act-daterange {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--r-sm);
+            background: var(--surface);
+            padding: 2px 10px;
+        }
+
+        .act-dr-lbl {
+            font-size: 13px;
+        }
+
+        .act-dr-sep {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text3);
+        }
+
+        .act-date-input {
+            border: none !important;
+            background: transparent !important;
+            padding: 7px 2px !important;
+            font-size: 12.5px;
+            /* pastikan indikator kalender bawaan tetap muncul (global select memakai appearance:none) */
+            -webkit-appearance: auto;
+            appearance: auto;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .act-date-input:focus {
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+
+        .act-date-input::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: .7;
+        }
+
         /* Timeline */
         .act-date {
             display: inline-flex;
@@ -4709,7 +4752,7 @@
                 /* Summary / Audit Explorer: mode pencarian, query, dan flag sudah-search. */
                 sumMode: 'judul', sumQuery: '', sumSearched: false,
                 /* Log Activity (Audit Trail): data + state filter/sort + timestamp fetch terakhir. */
-                actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDate: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
+                actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
             };
 
             /* Tab Admin: Tidak ada actlog */
@@ -4849,7 +4892,7 @@
                     sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
                     sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
                     sumMode: 'judul', sumQuery: '', sumSearched: false,
-                    actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDate: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
+                    actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
                 };
                 $('app').style.display = 'none'; $('loginPage').style.display = 'flex';
                 $('loginUser').value = ''; $('loginPass').value = ''; hideLoginErr();
@@ -5026,7 +5069,7 @@
                 // ── Tren % Penyelesaian (Close) per Bulan — hanya Admin, full-width ──
                 var trendCardHtml = '';
                 if (isAdmin) {
-                    var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
+                    var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)));
                     var tr = trendDirection(td.pct);
                     trendCardHtml = '<div class="charts-grid charts-1">' +
                         '<div class="chart-card"><div class="cc-head">' +
@@ -5073,67 +5116,70 @@
             /* Ganti granularitas Kurva S (Harian/Bulanan) — sinkron dengan filter dashboard. */
             function setSCurveMode(m) { S.sCurveMode = (m === 'harian') ? 'harian' : 'bulanan'; renderDashboard(); }
 
-            /* ── Trend data: cumulative % Close per bulan ───────
-               Setiap bulan M:
-                 total[M]  = jumlah rekomendasi dengan Tanggal Laporan <= akhir bulan M
-                 closed[M] = jumlah rekomendasi dengan Status='Close' & Tanggal Close <= akhir bulan M
-                 pct[M]    = closed / total * 100
-               Range bulan:
-                 - dashYear set → Jan..Des dari tahun itu (atau s.d. dashMonth bila set)
-                 - else        → 12 bulan terakhir s.d. bulan saat ini
+            /* ── Trend data: % Close KUMULATIF per PERIODE INPUT TL (cohort) ───────
+               Cohort ditentukan oleh kolom 'Bulan Input TL' (fallback 'Periode TL') — BUKAN
+               Tanggal Laporan. Cohort diurut kronologis, lalu diakumulasi:
+                 total[i]  = jumlah SELURUH rekomendasi teregistrasi s.d. periode ke-i (kumulatif by 'Bulan Input TL')
+                 closed[i] = jumlah rekomendasi dengan Tanggal Close ≤ akhir periode ke-i (kumulatif by 'Tanggal Close')
+                 pct[i]    = closed[i] / total[i] * 100
+               Contoh: total — Jan 2026 = 104 → Feb registrasi +20 → total Feb = 124, dst.
+                       close — Jan close 7 → Feb tambah close 2 → close Feb = 9, dst.
+               Chart SELALU memakai seluruh dataset; hanya filter Jenis & Kategori yang berlaku
+               (call site memfilter lewat filterByJenisDash/filterByKategoriDash). TIDAK dipengaruhi
+               filter Due Date / bulan / tahun / periode dashboard.
+               Menjawab: "Dari seluruh rekomendasi yang ada (s.d. periode itu), berapa % sudah Close?"
             ──────────────────────────────────────────────────── */
-            function buildTrendData(rows, dashYear, dashMonth) {
+            // Nilai urut kronologis dari label periode ('mm/yyyy', 'yyyy-mm', atau 'yyyy').
+            function _tlCohortSortVal(key) {
+                var s = String(key || '').trim(), m;
+                if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return (+m[2]) * 12 + (+m[1]);       // mm/yyyy
+                if ((m = s.match(/^(\d{4})[-\/](\d{1,2})$/))) return (+m[1]) * 12 + (+m[2]);    // yyyy-mm / yyyy/mm
+                if ((m = s.match(/^(\d{4})$/))) return (+m[1]) * 12;                            // yyyy
+                return Number.MAX_SAFE_INTEGER; // format tak dikenal → taruh di akhir
+            }
+            // Akhir periode (end-of-month/year) dari label periode → untuk batas kumulatif Tanggal Close.
+            function _tlPeriodEnd(key) {
+                var s = String(key || '').trim(), m;
+                if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return new Date(+m[2], +m[1], 0, 23, 59, 59);        // eom mm/yyyy
+                if ((m = s.match(/^(\d{4})[-\/](\d{1,2})$/))) return new Date(+m[1], +m[2], 0, 23, 59, 59);     // eom yyyy-mm
+                if ((m = s.match(/^(\d{4})$/))) return new Date(+m[1], 11, 31, 23, 59, 59);                    // akhir tahun
+                return null;
+            }
+            function buildTrendData(rows) {
                 if (!rows || rows.length === 0) return { labels: [], pct: [], closed: [], total: [] };
-
-                var reportedDates = [];
+                // Kelompokkan per cohort periode input TL (untuk TOTAL kumulatif by registrasi).
+                var groups = {}, order = [];
+                // Kumpulkan event Close beserta waktu Tanggal Close (untuk CLOSED kumulatif by tanggal close).
+                var closeEvents = [];
                 rows.forEach(function (r) {
-                    if (r['Tanggal Laporan']) {
-                        var d = new Date(r['Tanggal Laporan']);
-                        if (!isNaN(d.getTime())) reportedDates.push(d);
+                    var key = String(r['Bulan Input TL'] || '').trim() || String(r['Periode TL'] || '').trim();
+                    if (!key) return; // baris tanpa periode input TL diabaikan
+                    if (!groups[key]) { groups[key] = { total: 0 }; order.push(key); }
+                    groups[key].total++;
+                    if (String(r['Status'] || '').trim() === 'Close' && r['Tanggal Close']) {
+                        var tc = new Date(r['Tanggal Close']);
+                        if (!isNaN(tc.getTime())) closeEvents.push({ t: tc.getTime(), cohortV: _tlCohortSortVal(key) });
                     }
                 });
-                if (reportedDates.length === 0) return { labels: [], pct: [], closed: [], total: [] };
-
-                var now = new Date();
-                var startD, endD;
-                if (dashYear) {
-                    var y = Number(dashYear);
-                    startD = new Date(y, 0, 1);
-                    var endMonth = dashMonth ? (Number(dashMonth) - 1) : 11;
-                    if (y === now.getFullYear()) endMonth = Math.min(endMonth, now.getMonth());
-                    endD = new Date(y, endMonth, 1);
-                } else {
-                    endD = new Date(now.getFullYear(), now.getMonth(), 1);
-                    startD = new Date(endD); startD.setMonth(startD.getMonth() - 11);
-                    // Tetapi jangan lebih awal dari bulan rekomendasi pertama
-                    var minReported = new Date(Math.min.apply(null, reportedDates.map(function (d) { return d.getTime(); })));
-                    var minMonthStart = new Date(minReported.getFullYear(), minReported.getMonth(), 1);
-                    if (minMonthStart > startD) startD = minMonthStart;
-                }
-
-                var buckets = [];
-                var cur = new Date(startD);
-                while (cur <= endD) { buckets.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
-                if (buckets.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+                if (order.length === 0) return { labels: [], pct: [], closed: [], total: [] };
+                order.sort(function (a, b) { return _tlCohortSortVal(a) - _tlCohortSortVal(b); });
 
                 var labels = [], totalArr = [], closedArr = [], pctArr = [];
-                buckets.forEach(function (m) {
-                    var eom = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59);
-                    var total = 0, closed = 0;
-                    rows.forEach(function (r) {
-                        if (!r['Tanggal Laporan']) return;
-                        var tl = new Date(r['Tanggal Laporan']);
-                        if (isNaN(tl.getTime()) || tl > eom) return;
-                        total++;
-                        // Pakai status turunan → Close tetap dihitung dari Status asli 'Close'.
-                        if (String(r['Status'] || '') === 'Close' && r['Tanggal Close']) {
-                            var tc = new Date(r['Tanggal Close']);
-                            if (!isNaN(tc.getTime()) && tc <= eom) closed++;
-                        }
-                    });
-                    var pct = total > 0 ? (closed / total * 100) : 0;
-                    labels.push(MONTHS[m.getMonth()] + ' ' + String(m.getFullYear()).slice(-2));
-                    totalArr.push(total); closedArr.push(closed); pctArr.push(+pct.toFixed(1));
+                var cumTotal = 0;
+                order.forEach(function (k) {
+                    cumTotal += groups[k].total;                 // TOTAL: kumulatif rekomendasi teregistrasi s.d. periode ini
+                    var pv = _tlCohortSortVal(k);
+                    var peEnd = _tlPeriodEnd(k);
+                    var peT = peEnd ? peEnd.getTime() : Infinity;
+                    // CLOSED: kumulatif berdasarkan Tanggal Close ≤ akhir periode ini
+                    // (dibatasi cohort ≤ periode agar closed ⊆ total, hindari %>100 pd data anomali).
+                    var closed = 0;
+                    for (var i = 0; i < closeEvents.length; i++) {
+                        if (closeEvents[i].t <= peT && closeEvents[i].cohortV <= pv) closed++;
+                    }
+                    var pct = cumTotal > 0 ? (closed / cumTotal * 100) : 0;
+                    labels.push(k);
+                    totalArr.push(cumTotal); closedArr.push(closed); pctArr.push(+pct.toFixed(1));
                 });
                 return { labels: labels, pct: pctArr, closed: closedArr, total: totalArr };
             }
@@ -5517,7 +5563,7 @@
                     // ─── Line Chart: Tren % Close per Bulan (cumulative) ───
                     var trEl = document.getElementById('chartTrend');
                     if (trEl) {
-                        var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)), S.dashYear, S.dashMonth);
+                        var td = buildTrendData(filterByJenisDash(filterByKategoriDash(S.allRows)));
                         if (td.labels.length > 0) {
                             var ctx = trEl.getContext('2d');
                             // Gradient fill di bawah garis — tone biru lembut, konsisten tema
@@ -6102,6 +6148,11 @@
                         var cards = sumStat(stats.audit, 'Jumlah Audit') + sumStat(stats.temuan, 'Jumlah Temuan') + sumStat(stats.rekomendasi, 'Jumlah Rekomendasi');
                         if (mode.id === 'judul') cards += sumStat(stats.divisi, 'Jumlah Divisi') + sumStat(stats.departemen, 'Jumlah Departemen');
                         else if (mode.id === 'divisi') cards += sumStat(stats.departemen, 'Jumlah Departemen');
+                        // Kartu status turunan (Open/Proses/Close) — untuk semua mode, dari hasil pencarian (m.all).
+                        var stc = { Open: 0, Proses: 0, Close: 0 };
+                        m.all.forEach(function (r) { stc[deriveStatus(r)]++; });
+                        function sumStatC(val, lbl, color) { return '<div class="sum-stat"><div class="sum-stat-val" style="color:' + color + '">' + val + '</div><div class="sum-stat-lbl">' + lbl + '</div></div>'; }
+                        cards += sumStatC(stc.Open, 'Open', 'var(--amber)') + sumStatC(stc.Proses, 'Proses', 'var(--purple)') + sumStatC(stc.Close, 'Close', 'var(--green)');
                         statsSection =
                             '<div class="sum-stats-cap">📊 Ringkasan hasil pencarian ' + escH(mode.label) + ': “' + escH(S.sumQuery) + '”</div>' +
                             '<div class="sum-stats">' + cards + '</div>';
@@ -6263,14 +6314,15 @@
             }
             function applyActFilters() {
                 var a = S.actlog, g = function (id) { var e = document.getElementById(id); return e ? e.value : ''; };
-                a.fltDate = g('actFltDate'); a.fltUser = g('actFltUser'); a.fltRole = g('actFltRole');
+                a.fltDateFrom = g('actFltFrom'); a.fltDateTo = g('actFltTo');
+                a.fltUser = g('actFltUser'); a.fltRole = g('actFltRole');
                 a.fltAction = g('actFltAction'); a.fltJudul = g('actFltJudul'); a.fltDivisi = g('actFltDivisi');
                 a.search = g('actSearch'); a.sort = g('actSort') || 'desc';
                 renderActivityLog();
             }
             function clearActFilters() {
                 var a = S.actlog;
-                a.fltDate = a.fltUser = a.fltRole = a.fltAction = a.fltJudul = a.fltDivisi = a.search = '';
+                a.fltDateFrom = a.fltDateTo = a.fltUser = a.fltRole = a.fltAction = a.fltJudul = a.fltDivisi = a.search = '';
                 a.sort = 'desc';
                 renderActivityLog();
             }
@@ -6321,20 +6373,19 @@
 
                 function distinct(field) { var set = {}; logs.forEach(function (l) { var v = String(l[field] || '').trim(); if (v) set[v] = 1; }); return Object.keys(set).sort(); }
                 var users = distinct('Username'), roles = distinct('Role'), actions = distinct('Action'), juduls = distinct('Judul Audit'), divisis = distinct('Divisi');
-                var dateMap = {};
-                logs.forEach(function (l) { var d = parseActTs(l['Timestamp']); if (d) dateMap[actDateKey(d)] = actDateLabel(d); });
-                var dateKeys = Object.keys(dateMap).sort().reverse();
 
                 var q = String(a.search || '').trim().toLowerCase();
                 // PERFORMA: default HANYA 7 hari terakhir (data lama tidak dirender).
                 // Batas 7 hari dilepas begitu user memakai filter apa pun (termasuk search) —
                 // sehingga data lama hanya dimuat saat benar-benar dicari.
-                var filtersActive = !!(a.fltDate || a.fltUser || a.fltRole || a.fltAction || a.fltJudul || a.fltDivisi || q);
+                var filtersActive = !!(a.fltDateFrom || a.fltDateTo || a.fltUser || a.fltRole || a.fltAction || a.fltJudul || a.fltDivisi || q);
                 var weekAgo = Date.now() - 7 * 86400000;
                 var filtered = logs.filter(function (l) {
                     var d = parseActTs(l['Timestamp']); var dk = d ? actDateKey(d) : '';
                     if (!filtersActive) { if (!d || d.getTime() < weekAgo) return false; }  // scope default: 7 hari terakhir
-                    if (a.fltDate && dk !== a.fltDate) return false;
+                    // Rentang tanggal (calendar): dk = 'yyyy-mm-dd' → perbandingan string ISO aman.
+                    if (a.fltDateFrom && (!dk || dk < a.fltDateFrom)) return false;
+                    if (a.fltDateTo && (!dk || dk > a.fltDateTo)) return false;
                     if (a.fltUser && String(l['Username'] || '') !== a.fltUser) return false;
                     if (a.fltRole && String(l['Role'] || '') !== a.fltRole) return false;
                     if (a.fltAction && String(l['Action'] || '') !== a.fltAction) return false;
@@ -6366,18 +6417,23 @@
                     sumStat(st.app, 'Approve Close') + sumStat(st.rej, 'Reject Close') + '</div>';
 
                 function opt(list, sel, ph) { return '<option value="">' + ph + '</option>' + list.map(function (v) { return '<option value="' + escH(v) + '"' + (sel === v ? ' selected' : '') + '>' + escH(v) + '</option>'; }).join(''); }
-                var dateOpts = '<option value="">Semua Tanggal</option>' + dateKeys.map(function (k) { return '<option value="' + escH(k) + '"' + (a.fltDate === k ? ' selected' : '') + '>' + escH(dateMap[k]) + '</option>'; }).join('');
                 var filters = '<div class="act-filters">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="actSearch" placeholder="Cari username, judul, divisi, rekomendasi, ID…" value="' + escH(a.search || '') + '" style="padding-left:34px" onkeydown="if(event.key===\'Enter\'){event.preventDefault();applyActFilters();}"/></div>' +
                     '<button class="btn btn-primary btn-sm" onclick="applyActFilters()">🔍 Cari</button>' +
-                    '<select id="actFltDate" onchange="applyActFilters()">' + dateOpts + '</select>' +
+                    // Filter tanggal berbasis kalender (rentang / tanggal tertentu). Kosongkan salah satu untuk open-ended.
+                    '<div class="act-daterange"><span class="act-dr-lbl">📅</span>' +
+                    '<input type="date" id="actFltFrom" class="act-date-input" value="' + escH(a.fltDateFrom || '') + '" onchange="applyActFilters()" title="Dari tanggal"/>' +
+                    '<span class="act-dr-sep">s.d.</span>' +
+                    '<input type="date" id="actFltTo" class="act-date-input" value="' + escH(a.fltDateTo || '') + '" onchange="applyActFilters()" title="Sampai tanggal"/>' +
+                    '</div>' +
                     '<select id="actFltUser" onchange="applyActFilters()">' + opt(users, a.fltUser, 'Semua User') + '</select>' +
                     '<select id="actFltRole" onchange="applyActFilters()">' + opt(roles, a.fltRole, 'Semua Role') + '</select>' +
                     '<select id="actFltAction" onchange="applyActFilters()">' + opt(actions, a.fltAction, 'Semua Aktivitas') + '</select>' +
                     '<select id="actFltJudul" onchange="applyActFilters()">' + opt(juduls, a.fltJudul, 'Semua Judul Audit') + '</select>' +
                     '<select id="actFltDivisi" onchange="applyActFilters()">' + opt(divisis, a.fltDivisi, 'Semua Divisi') + '</select>' +
                     '<select id="actSort" onchange="applyActFilters()"><option value="desc"' + (a.sort !== 'asc' ? ' selected' : '') + '>Terbaru dulu</option><option value="asc"' + (a.sort === 'asc' ? ' selected' : '') + '>Terlama dulu</option></select>' +
-                    '<button class="btn btn-ghost btn-sm" onclick="clearActFilters()">✕ Reset</button>' +
+                    // Tombol Reset hanya muncul saat sudah ada filter aktif.
+                    (filtersActive ? '<button class="btn btn-ghost btn-sm" onclick="clearActFilters()">✕ Reset</button>' : '') +
                     '</div>';
 
                 var timeline = '';
