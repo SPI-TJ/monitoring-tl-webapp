@@ -5116,71 +5116,64 @@
             /* Ganti granularitas Kurva S (Harian/Bulanan) — sinkron dengan filter dashboard. */
             function setSCurveMode(m) { S.sCurveMode = (m === 'harian') ? 'harian' : 'bulanan'; renderDashboard(); }
 
-            /* ── Trend data: % Close KUMULATIF per PERIODE INPUT TL (cohort) ───────
-               Cohort ditentukan oleh kolom 'Bulan Input TL' (fallback 'Periode TL') — BUKAN
-               Tanggal Laporan. Cohort diurut kronologis, lalu diakumulasi:
-                 total[i]  = jumlah SELURUH rekomendasi teregistrasi s.d. periode ke-i (kumulatif by 'Bulan Input TL')
-                 closed[i] = jumlah rekomendasi dengan Tanggal Close ≤ akhir periode ke-i (kumulatif by 'Tanggal Close')
-                 pct[i]    = closed[i] / total[i] * 100
-               Contoh: total — Jan 2026 = 104 → Feb registrasi +20 → total Feb = 124, dst.
-                       close — Jan close 7 → Feb tambah close 2 → close Feb = 9, dst.
-               Chart SELALU memakai seluruh dataset; hanya filter Jenis & Kategori yang berlaku
-               (call site memfilter lewat filterByJenisDash/filterByKategoriDash). TIDAK dipengaruhi
-               filter Due Date / bulan / tahun / periode dashboard.
-               Menjawab: "Dari seluruh rekomendasi yang ada (s.d. periode itu), berapa % sudah Close?"
+            /* ── Trend data: % Close KUMULATIF pada TIMELINE BULANAN KONTINU ───────
+               Sumbu-X = setiap bulan dari bulan registrasi TL pertama s.d. bulan terakhir
+               (registrasi ATAU close) — TIDAK hanya bulan yang punya periode registrasi.
+               Untuk tiap bulan M:
+                 total[M]  = jumlah rekomendasi teregistrasi (by 'Bulan Input TL') s.d. bulan M
+                             → bulan tanpa registrasi baru mewarisi total bulan sebelumnya
+                 closed[M] = jumlah rekomendasi dengan 'Tanggal Close' ≤ akhir bulan M (kumulatif)
+                 pct[M]    = closed[M] / total[M] * 100
+               Cohort = 'Bulan Input TL' (fallback 'Periode TL' → dianggap Januari tahun itu),
+               BUKAN Tanggal Laporan. Chart SELALU pakai seluruh dataset; hanya filter Jenis &
+               Kategori yang berlaku (via call site). TIDAK dipengaruhi filter Due Date/bulan/tahun.
             ──────────────────────────────────────────────────── */
-            // Nilai urut kronologis dari label periode ('mm/yyyy', 'yyyy-mm', atau 'yyyy').
-            function _tlCohortSortVal(key) {
+            // Index bulan absolut (year*12 + month, month 1..12) dari label periode.
+            function _periodMonthIndex(key) {
                 var s = String(key || '').trim(), m;
-                if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return (+m[2]) * 12 + (+m[1]);       // mm/yyyy
-                if ((m = s.match(/^(\d{4})[-\/](\d{1,2})$/))) return (+m[1]) * 12 + (+m[2]);    // yyyy-mm / yyyy/mm
-                if ((m = s.match(/^(\d{4})$/))) return (+m[1]) * 12;                            // yyyy
-                return Number.MAX_SAFE_INTEGER; // format tak dikenal → taruh di akhir
-            }
-            // Akhir periode (end-of-month/year) dari label periode → untuk batas kumulatif Tanggal Close.
-            function _tlPeriodEnd(key) {
-                var s = String(key || '').trim(), m;
-                if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return new Date(+m[2], +m[1], 0, 23, 59, 59);        // eom mm/yyyy
-                if ((m = s.match(/^(\d{4})[-\/](\d{1,2})$/))) return new Date(+m[1], +m[2], 0, 23, 59, 59);     // eom yyyy-mm
-                if ((m = s.match(/^(\d{4})$/))) return new Date(+m[1], 11, 31, 23, 59, 59);                    // akhir tahun
+                if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return (+m[2]) * 12 + (+m[1]);   // mm/yyyy
+                if ((m = s.match(/^(\d{4})[-\/](\d{1,2})$/))) return (+m[1]) * 12 + (+m[2]); // yyyy-mm / yyyy/mm
+                if ((m = s.match(/^(\d{4})$/))) return (+m[1]) * 12 + 1;                    // yyyy → Januari
                 return null;
             }
+            function _miParts(mi) { return { y: Math.floor((mi - 1) / 12), mo: ((mi - 1) % 12) + 1 }; }
+            function _miLabel(mi) { var p = _miParts(mi); return _p2(p.mo) + '/' + p.y; }
+            function _miEomTime(mi) { var p = _miParts(mi); return new Date(p.y, p.mo, 0, 23, 59, 59).getTime(); }
+
             function buildTrendData(rows) {
                 if (!rows || rows.length === 0) return { labels: [], pct: [], closed: [], total: [] };
-                // Kelompokkan per cohort periode input TL (untuk TOTAL kumulatif by registrasi).
-                var groups = {}, order = [];
-                // Kumpulkan event Close beserta waktu Tanggal Close (untuk CLOSED kumulatif by tanggal close).
-                var closeEvents = [];
+                var recs = [];                 // { cmi: month index registrasi, closeT: waktu Tanggal Close | null }
+                var minMi = Infinity, maxMi = -Infinity;
                 rows.forEach(function (r) {
                     var key = String(r['Bulan Input TL'] || '').trim() || String(r['Periode TL'] || '').trim();
-                    if (!key) return; // baris tanpa periode input TL diabaikan
-                    if (!groups[key]) { groups[key] = { total: 0 }; order.push(key); }
-                    groups[key].total++;
+                    var cmi = key ? _periodMonthIndex(key) : null;
+                    if (cmi == null) return;   // baris tanpa periode registrasi diabaikan dari total
+                    var closeT = null;
                     if (String(r['Status'] || '').trim() === 'Close' && r['Tanggal Close']) {
                         var tc = new Date(r['Tanggal Close']);
-                        if (!isNaN(tc.getTime())) closeEvents.push({ t: tc.getTime(), cohortV: _tlCohortSortVal(key) });
+                        if (!isNaN(tc.getTime())) closeT = tc.getTime();
                     }
+                    recs.push({ cmi: cmi, closeT: closeT });
+                    if (cmi < minMi) minMi = cmi;
+                    if (cmi > maxMi) maxMi = cmi;
+                    if (closeT != null) { var dc = new Date(closeT); var cMi = dc.getFullYear() * 12 + (dc.getMonth() + 1); if (cMi > maxMi) maxMi = cMi; } // rentang meluas s.d. bulan close terakhir
                 });
-                if (order.length === 0) return { labels: [], pct: [], closed: [], total: [] };
-                order.sort(function (a, b) { return _tlCohortSortVal(a) - _tlCohortSortVal(b); });
+                if (recs.length === 0 || !isFinite(minMi) || !isFinite(maxMi)) return { labels: [], pct: [], closed: [], total: [] };
 
                 var labels = [], totalArr = [], closedArr = [], pctArr = [];
-                var cumTotal = 0;
-                order.forEach(function (k) {
-                    cumTotal += groups[k].total;                 // TOTAL: kumulatif rekomendasi teregistrasi s.d. periode ini
-                    var pv = _tlCohortSortVal(k);
-                    var peEnd = _tlPeriodEnd(k);
-                    var peT = peEnd ? peEnd.getTime() : Infinity;
-                    // CLOSED: kumulatif berdasarkan Tanggal Close ≤ akhir periode ini
-                    // (dibatasi cohort ≤ periode agar closed ⊆ total, hindari %>100 pd data anomali).
-                    var closed = 0;
-                    for (var i = 0; i < closeEvents.length; i++) {
-                        if (closeEvents[i].t <= peT && closeEvents[i].cohortV <= pv) closed++;
+                for (var mi = minMi; mi <= maxMi; mi++) {
+                    var eomT = _miEomTime(mi);
+                    var total = 0, closed = 0;
+                    for (var i = 0; i < recs.length; i++) {
+                        if (recs[i].cmi <= mi) {                    // sudah teregistrasi s.d. bulan ini
+                            total++;
+                            if (recs[i].closeT != null && recs[i].closeT <= eomT) closed++; // sudah close s.d. akhir bulan ini
+                        }
                     }
-                    var pct = cumTotal > 0 ? (closed / cumTotal * 100) : 0;
-                    labels.push(k);
-                    totalArr.push(cumTotal); closedArr.push(closed); pctArr.push(+pct.toFixed(1));
-                });
+                    labels.push(_miLabel(mi));
+                    totalArr.push(total); closedArr.push(closed);
+                    pctArr.push(+(total > 0 ? (closed / total * 100) : 0).toFixed(1));
+                }
                 return { labels: labels, pct: pctArr, closed: closedArr, total: totalArr };
             }
 
