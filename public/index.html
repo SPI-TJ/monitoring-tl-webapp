@@ -27,6 +27,7 @@
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
     <style>
         /* ═══════════════════════════════════════════════════
    DESIGN TOKENS — TransJakarta Warm Light Theme
@@ -820,6 +821,13 @@
             box-shadow: 0 0 0 3px rgba(0, 102, 179, .10);
             /* background-color (bukan shorthand) agar caret dropdown pada <select> tidak terhapus */
             background-color: var(--tj-blue-pale);
+        }
+
+        select.select-active {
+            border-color: var(--tj-blue);
+            background-color: var(--tj-blue-pale);
+            color: var(--tj-blue);
+            font-weight: 600;
         }
 
         /* Semua <select> diberi caret ▼ kustom — karena -webkit-appearance:none menghapus panah
@@ -4434,7 +4442,7 @@
                         <h3>Update Progres &amp; Request Close</h3>
                         <div class="mhsub" id="picSub"></div>
                     </div>
-                    <button class="btn-close" onclick="closeModal('mPIC')">✕</button>
+                    <button class="btn-close" onclick="guardClose('mPIC')">✕</button>
                 </div>
                 <div class="modal-body">
                     <!-- Konteks read-only -->
@@ -4515,7 +4523,7 @@
                     </div>
                 </div>
                 <div class="modal-foot">
-                    <button class="btn btn-ghost" onclick="closeModal('mPIC')">Batal</button>
+                    <button class="btn btn-ghost" onclick="guardClose('mPIC')">Batal</button>
                     <button class="btn btn-amber" id="btnSavePIC" onclick="savePIC()">💾 Simpan Perubahan</button>
                 </div>
             </div>
@@ -4550,11 +4558,11 @@
             <div class="modal modal-lg">
                 <div class="modal-head">
                     <h3 id="adminTitle">Edit Data Temuan</h3>
-                    <button class="btn-close" onclick="closeModal('mAdmin')">✕</button>
+                    <button class="btn-close" onclick="guardClose('mAdmin')">✕</button>
                 </div>
                 <div class="modal-body" id="adminBody"></div>
                 <div class="modal-foot">
-                    <button class="btn btn-ghost" onclick="closeModal('mAdmin')">Batal</button>
+                    <button class="btn btn-ghost" onclick="guardClose('mAdmin')">Batal</button>
                     <button class="btn btn-primary" id="btnSaveAdmin" onclick="saveAdminEdit()">💾 Simpan</button>
                 </div>
             </div>
@@ -4948,6 +4956,7 @@
             }
 
             function switchTab(tab) {
+                if (tab !== 'data') S.activeOverdueFilter = false;
                 S.tab = tab; buildNav(); destroyCharts();
                 if (tab === 'dashboard') renderDashboard();
                 else if (tab === 'summary') renderSummary();
@@ -4956,6 +4965,9 @@
                 else if (tab === 'actlog') renderActivityLog();
                 else if (tab === 'users') loadUsers();
             }
+
+            function goToOverdue() { S.pendingStatusFilter = 'Overdue'; switchTab('data'); }
+            function goToRequestClose() { switchTab('request'); }
 
             /* ══════════════════════════════════════
                FETCH
@@ -5045,8 +5057,8 @@
                     sc('sc-open', '🟡', s.open, 'Masih Open') +
                     sc('sc-proses', '🔄', s.proses, 'Dalam Proses') +   /* status turunan Proses */
                     sc('sc-close', '✅', s.closed, 'Sudah Close') +
-                    sc('sc-req', '🔔', s.requestClose, 'Menunggu Approval') +
-                    sc('sc-overdue', '⚠️', s.overdue, 'Jumlah Overdue') +
+                    sc('sc-req', '🔔', s.requestClose, 'Menunggu Approval', canEdit(S.user.role) ? 'goToRequestClose()' : '') +
+                    sc('sc-overdue', '⚠️', s.overdue, 'Jumlah Overdue', 'goToOverdue()') +
                     '</div>';
 
                 var bigProg = '<div class="big-prog">' +
@@ -5065,6 +5077,16 @@
                 var chartCols = isAdmin
                     ? '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Rekomendasi', 'Proporsi Open vs Close', '') + ccard('chartDir', '🏢', 'Per Direktorat', 'Jumlah rekomendasi', '') + ccard('chartProg', '📈', 'Progres per Direktorat', 'Rata-rata % penyelesaian', '') + '</div>'
                     : '<div class="charts-grid charts-3">' + ccard('chartDonut', '📊', 'Status Divisi', 'Proporsi Open vs Close', '') + ccard('chartDept', '🏬', 'Per Departemen', 'Jumlah rekomendasi', '') + ccard('chartDeptProg', '📈', 'Progres per Departemen', 'Rata-rata % penyelesaian', '') + '</div>';
+
+                // ── Stacked Bar: Status Tindak Lanjut per Divisi/Departemen ──
+                var stackedTitle = isAdmin ? 'Status Tindak Lanjut per Divisi' : 'Status Tindak Lanjut per Departemen';
+                var stackedSub = isAdmin ? 'Open, Overdue & Close per divisi' : 'Open, Overdue & Close per departemen';
+                var stackedBarCard = '<div class="charts-grid charts-1">' +
+                    '<div class="chart-card"><div class="cc-head">' +
+                    '<div><div class="cc-title">📊 ' + stackedTitle + '</div>' +
+                    '<div class="cc-sub">' + stackedSub + '</div></div>' +
+                    '<span class="cc-icon">📊</span></div>' +
+                    '<div class="cc-body" id="stackedBarBody" style="height:auto;min-height:240px"><canvas id="chartStackedBar"></canvas></div></div></div>';
 
                 // ── Tren % Penyelesaian (Close) per Bulan — hanya Admin, full-width ──
                 var trendCardHtml = '';
@@ -5107,8 +5129,8 @@
                     : '';
 
                 var distSection = buildDistCards(isAdmin, s);
-                // Urutan: chart 3-up → Tren bulanan → Kurva S (jika KNKT aktif) → distribusi → pivot.
-                showMain(monthFilterHtml + statsHtml + bigProg + chartCols + trendCardHtml + sCurveCard + distSection + pivotCard);
+                // Urutan: chart 3-up → stacked bar → Tren bulanan → Kurva S (jika KNKT aktif) → distribusi → pivot.
+                showMain(monthFilterHtml + statsHtml + bigProg + chartCols + stackedBarCard + trendCardHtml + sCurveCard + distSection + pivotCard);
                 if (isAdmin) renderPivotTable();   // isi #pivotTableWrap (tanpa re-render seluruh dashboard)
                 setTimeout(function () { renderCharts(isAdmin, fRows, s); }, 60);
             }
@@ -5309,19 +5331,21 @@
                 var now = new Date();
                 var overdue = rows.filter(r => { var d = r['Due Date'] ? new Date(r['Due Date']) : null; return d && !isNaN(d) && deriveStatus(r) !== 'Close' && d < now; }).length;
                 var byDirDetail = {}, byDeptDetail = {}, byDivDetail = {};
-                // Akumulasi per grup dgn tiga status turunan (open / proses / closed).
-                function bump(map, key, st) {
-                    if (!map[key]) map[key] = { total: 0, open: 0, proses: 0, closed: 0 };
+                function bump(map, key, st, isOd) {
+                    if (!map[key]) map[key] = { total: 0, open: 0, proses: 0, closed: 0, overdue: 0 };
                     map[key].total++;
                     if (st === 'Close') map[key].closed++;
                     else if (st === 'Proses') map[key].proses++;
                     else map[key].open++;
+                    if (isOd) map[key].overdue++;
                 }
                 rows.forEach(function (r) {
                     var st = deriveStatus(r);
-                    bump(byDirDetail, r['Kode Direktorat'] || 'N/A', st);
-                    bump(byDeptDetail, r['Departemen'] || 'N/A', st);
-                    bump(byDivDetail, r['Divisi'] || 'N/A', st);
+                    var dd = r['Due Date'] ? new Date(r['Due Date']) : null;
+                    var isOd = dd && !isNaN(dd) && st !== 'Close' && dd < now;
+                    bump(byDirDetail, r['Kode Direktorat'] || 'N/A', st, isOd);
+                    bump(byDeptDetail, r['Departemen'] || 'N/A', st, isOd);
+                    bump(byDivDetail, r['Divisi'] || 'N/A', st, isOd);
                 });
                 var byDir = {}, byDept = {}, byDiv = {};
                 Object.keys(byDirDetail).forEach(k => byDir[k] = byDirDetail[k].total);
@@ -5365,7 +5389,6 @@
                     ? ' — s.d. ' + MONTHS[S.dashMonth - 1] + (S.dashYear ? ' ' + S.dashYear : '')
                     : (S.dashYear ? ' — Tahun ' + S.dashYear : '');
                 function distRows(detail) {
-                    // Kolom Proses (ungu) ditambahkan di antara Open & Close.
                     return Object.entries(detail).sort((a, b) => b[1].total - a[1].total).map(function (e) {
                         var k = e[0], v = e[1], pct = v.total > 0 ? +(v.closed / v.total * 100).toFixed(0) : 0;
                         var fc = pct >= 80 ? 'pct-fill-hi' : pct >= 50 ? 'pct-fill-md' : 'pct-fill-lo';
@@ -5374,12 +5397,13 @@
                             '<td><span class="chip chip-blue">' + v.total + '</span></td>' +
                             '<td><span class="chip chip-amber">' + v.open + '</span></td>' +
                             '<td><span class="chip chip-purple">' + (v.proses || 0) + '</span></td>' +
+                            '<td><span class="chip chip-red">' + (v.overdue || 0) + '</span></td>' +
                             '<td><span class="chip chip-green">' + v.closed + '</span></td>' +
                             '<td><div class="pct-bar-wrap"><div class="pct-bar"><div class="' + fc + '" style="width:' + pct + '%"></div></div>' +
                             '<span class="pct-num ' + nc + '">' + pct + '%</span></div></td></tr>';
-                    }).join('') || '<tr><td colspan="6"><div class="empty"><p>Tidak ada data</p></div></td></tr>';
+                    }).join('') || '<tr><td colspan="7"><div class="empty"><p>Tidak ada data</p></div></td></tr>';
                 }
-                var thead = '<thead><tr><th style="min-width:130px">Nama</th><th>Total</th><th>Open</th><th>Proses</th><th>Close</th><th style="min-width:130px">% Selesai</th></tr></thead>';
+                var thead = '<thead><tr><th style="min-width:130px">Nama</th><th>Total</th><th>Open</th><th>Proses</th><th>Overdue</th><th>Close</th><th style="min-width:130px">% Selesai</th></tr></thead>';
                 var cardDir = '<div class="card"><div class="card-header"><div><div class="card-title">🏢 Distribusi per Direktorat</div><div class="card-subtitle">Rekapitulasi tiap direktorat' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDirDetail) + '</tbody></table></div></div>';
                 var cardDiv = '<div class="card"><div class="card-header"><div><div class="card-title">🏛️ Distribusi per Divisi</div><div class="card-subtitle">Rekapitulasi tiap divisi' + lbl + '</div></div></div><div class="table-scroll table-scroll-mob"><table>' + thead + '<tbody>' + distRows(s.byDivDetail) + '</tbody></table></div></div>';
                 // Departemen full-width (dist-span-full) → lebih lega dibanding dibagi 3 kolom.
@@ -5488,7 +5512,7 @@
                 renderPivotTable();
             }
 
-            function sc(cls, icon, val, lbl) { return '<div class="stat-card ' + cls + '"><div class="stat-icon-wrap">' + icon + '</div><div class="stat-number">' + val + '</div><div class="stat-label">' + lbl + '</div></div>'; }
+            function sc(cls, icon, val, lbl, onclick) { return '<div class="stat-card ' + cls + '"' + (onclick ? ' onclick="' + onclick + '" style="cursor:pointer" title="Klik untuk melihat detail"' : '') + '><div class="stat-icon-wrap">' + icon + '</div><div class="stat-number">' + val + '</div><div class="stat-label">' + lbl + '</div></div>'; }
             function ccard(id, icon, title, sub) { return '<div class="chart-card"><div class="cc-head"><div><div class="cc-title">' + title + '</div><div class="cc-sub">' + sub + '</div></div><span class="cc-icon">' + icon + '</span></div><div class="cc-body"><canvas id="' + id + '"></canvas></div></div>'; }
 
             function destroyCharts() { Object.values(S.charts).forEach(c => { try { c.destroy(); } catch (e) { } }); S.charts = {}; }
@@ -5497,6 +5521,7 @@
                 var TJ = '#0066B3', TJM = '#3D8FCC', GRN = '#059669', AMB = '#D97706', RED = '#E31D28', PUR = '#7C3AED', GRID = 'rgba(0,0,0,.05)';
                 var FONT = { family: "'Plus Jakarta Sans', sans-serif", size: 11, weight: '600' };
                 Chart.defaults.font = FONT; Chart.defaults.color = '#78716C';
+                Chart.defaults.plugins.datalabels = { display: false };
                 // maintainAspectRatio:false di SEMUA chart → kanvas mengisi container ber-tinggi tetap
                 // (lihat .cc-body di CSS). Ini kunci perbaikan bug shrink saat browser di-zoom.
 
@@ -5629,6 +5654,98 @@
                     var dppEl = document.getElementById('chartDeptProg');
                     if (dppEl) { var pm2 = {}, cm2 = {}; rows.forEach(r => { var d = r['Departemen'] || 'N/A'; pm2[d] = (pm2[d] || 0) + (Number(r['Progres%']) || 0); cm2[d] = (cm2[d] || 0) + 1; }); var pk2 = Object.keys(pm2).sort((a, b) => (pm2[b] / cm2[b]) - (pm2[a] / cm2[a])); var pv2 = pk2.map(k => +(pm2[k] / cm2[k]).toFixed(0)); S.charts.deptProg = new Chart(dppEl, { type: 'bar', data: { labels: pk2, datasets: [{ label: 'Avg Progres%', data: pv2, backgroundColor: pv2.map(v => v >= 80 ? GRN : v >= 50 ? AMB : RED), borderRadius: 6, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: GRID }, ticks: { font: { size: 10 } } }, y: { min: 0, max: 100, grid: { color: GRID }, ticks: { callback: v => v + '%' } } } } }); }
                 }
+
+                // ── Stacked Bar: Status Tindak Lanjut per Divisi/Departemen ──
+                var sbEl = document.getElementById('chartStackedBar');
+                if (sbEl) {
+                    var nowTs = new Date();
+                    nowTs.setHours(0, 0, 0, 0);
+                    var dimKey = isAdmin ? 'Divisi' : 'Departemen';
+                    var agg = {};
+                    rows.forEach(function (r) {
+                        var grp = String(r[dimKey] || '').trim() || 'N/A';
+                        if (!agg[grp]) agg[grp] = { open: 0, overdue: 0, close: 0, total: 0 };
+                        var st = deriveStatus(r);
+                        if (st === 'Close') {
+                            agg[grp].close++;
+                        } else {
+                            var dd = r['Due Date'] ? new Date(r['Due Date']) : null;
+                            if (dd && !isNaN(dd.getTime())) dd.setHours(0, 0, 0, 0);
+                            if (dd && !isNaN(dd.getTime()) && dd.getTime() < nowTs.getTime()) {
+                                agg[grp].overdue++;
+                            } else {
+                                agg[grp].open++;
+                            }
+                        }
+                        agg[grp].total++;
+                    });
+                    var sbKeys = Object.keys(agg).sort(function (a, b) { return agg[b].total - agg[a].total; });
+                    if (sbKeys.length > 0) {
+                        var sbOpen = sbKeys.map(function (k) { return agg[k].open; });
+                        var sbOverdue = sbKeys.map(function (k) { return agg[k].overdue; });
+                        var sbClose = sbKeys.map(function (k) { return agg[k].close; });
+                        var barH = Math.max(300, sbKeys.length * 28 + 120);
+                        var sbBody = document.getElementById('stackedBarBody');
+                        if (sbBody) sbBody.style.height = barH + 'px';
+                        S.charts.stackedBar = new Chart(sbEl, {
+                            type: 'bar',
+                            data: {
+                                labels: sbKeys,
+                                datasets: [
+                                    { label: 'Open', data: sbOpen, backgroundColor: AMB, borderRadius: 4, borderSkipped: false },
+                                    { label: 'Overdue', data: sbOverdue, backgroundColor: RED, borderRadius: 4, borderSkipped: false },
+                                    { label: 'Close', data: sbClose, backgroundColor: GRN, borderRadius: 4, borderSkipped: false }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                        labels: { padding: 16, usePointStyle: true, pointStyle: 'rect', boxWidth: 12, font: { size: 11, weight: '600' } },
+                                        title: { display: true, text: 'Status', font: { size: 11, weight: '700' }, padding: { bottom: 4 } }
+                                    },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(28,25,23,.95)', titleColor: '#fff', bodyColor: '#fff', padding: 12, cornerRadius: 8,
+                                        callbacks: {
+                                            afterBody: function (items) {
+                                                if (!items.length) return '';
+                                                var idx = items[0].dataIndex;
+                                                var t = sbOpen[idx] + sbOverdue[idx] + sbClose[idx];
+                                                return '  Total: ' + t;
+                                            }
+                                        }
+                                    },
+                                    datalabels: {
+                                        display: function (ctx) { return ctx.dataset.data[ctx.dataIndex] > 0; },
+                                        color: '#fff',
+                                        font: { size: 11, weight: '700' },
+                                        anchor: 'center',
+                                        align: 'center'
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        stacked: true,
+                                        grid: { display: false },
+                                        ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0, autoSkip: false }
+                                    },
+                                    y: {
+                                        stacked: true,
+                                        grid: { color: GRID },
+                                        ticks: { stepSize: 1, font: { size: 10 } },
+                                        beginAtZero: true,
+                                        title: { display: true, text: 'Jumlah Rekomendasi', font: { size: 10, weight: 700 }, color: '#78716C', padding: { bottom: 6 } }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        var sbWrap = sbEl.parentElement;
+                        if (sbWrap) sbWrap.innerHTML = '<div class="empty" style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="empty-icon">📊</div><p>Tidak ada data untuk ditampilkan</p></div>';
+                    }
+                }
             }
 
             /* ══════════════════════════════════════
@@ -5651,7 +5768,10 @@
 
             function renderTable(q, stF, rcF, divF, deptF, katF) {
                 q = q !== undefined ? q : getFV('srchInput');
-                stF = stF !== undefined ? stF : getFV('fltStatus');
+                if (S.pendingStatusFilter) { stF = S.pendingStatusFilter; S.pendingStatusFilter = null; S.activeOverdueFilter = stF === 'Overdue'; }
+                else if (stF !== undefined) { /* stF sudah diberikan via parameter */ }
+                else if (S.activeOverdueFilter && !isAdminRole(S.user.role)) { stF = 'Overdue'; }
+                else { stF = getFV('fltStatus'); }
                 rcF = rcF !== undefined ? rcF : getFV('fltRC');
                 divF = divF !== undefined ? divF : getFV('fltDivisi');
                 deptF = deptF !== undefined ? deptF : getFV('fltDept');
@@ -5667,9 +5787,9 @@
                 var isAdmin = isAdminRole(S.user.role), ql = q.toLowerCase();
                 // PIC tidak boleh melihat rekomendasi yang sudah Close di tabel — sembunyikan
                 // baris ber-status turunan 'Close' (Open & Proses tetap tampil). PIC tidak punya
-                // dropdown status, jadi stF diabaikan untuk PIC.
+                // dropdown status, jadi stF diabaikan untuk PIC — kecuali 'Overdue' (dari card Dashboard).
                 var hideClose = !isAdmin;
-                if (hideClose) stF = '';
+                if (hideClose && stF !== 'Overdue') stF = '';
                 S.tableKategori = katF || null;
 
                 // Daftar Jenis Pemeriksaan yang tersedia — DIBATASI oleh Kategori yang dipilih.
@@ -5690,11 +5810,20 @@
                 // statScope = semua baris cocok filter TANPA menyembunyikan Close → dipakai untuk
                 // mini-card statistik (agar PIC pun melihat jumlah Close). S.filtered = daftar tabel
                 // (PIC menyembunyikan Close).
+                var _nowTs = new Date().getTime();
+                function _isOverdue(r) {
+                    var dd = r['Due Date'] ? new Date(r['Due Date']) : null;
+                    return dd && !isNaN(dd.getTime()) && deriveStatus(r) !== 'Close' && dd.getTime() < _nowTs;
+                }
                 function _tblMatch(r) {
                     var m = !ql || ['Judul Audit', 'Rekomendasi', 'Divisi', 'Departemen', 'Kode Direktorat', 'No', 'Temuan Pemeriksaan'].some(function (k) { return String(r[k] || '').toLowerCase().includes(ql); });
                     var jOk = jenisSel.length === 0 || jenisSel.indexOf(String(r['Jenis Pemeriksaan'] || '')) >= 0;
                     var dSt = deriveStatus(r);
-                    return m && jOk && (!stF || dSt === stF) && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
+                    var stMatch;
+                    if (!stF) { stMatch = true; }
+                    else if (stF === 'Overdue') { stMatch = _isOverdue(r); }
+                    else { stMatch = dSt === stF; }
+                    return m && jOk && stMatch && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
                 }
                 var statScope = S.allRows.filter(_tblMatch);
                 S.filtered = hideClose ? statScope.filter(function (r) { return deriveStatus(r) !== 'Close'; }) : statScope;
@@ -5764,8 +5893,8 @@
                 // meskipun baris Close tidak ditampilkan pada daftar tabel.
                 var uniqJudul = (function () { var set = {}; statScope.forEach(function (r) { var j = String(r['Judul Audit'] || '').trim(); if (j) set[j] = 1; }); return Object.keys(set).length; })();
                 var totalRek = statScope.length;
-                var stCount = { Open: 0, Proses: 0, Close: 0 };
-                statScope.forEach(function (r) { stCount[deriveStatus(r)]++; });
+                var stCount = { Open: 0, Proses: 0, Close: 0, Overdue: 0 };
+                statScope.forEach(function (r) { var st = deriveStatus(r); stCount[st]++; if (_isOverdue(r)) stCount.Overdue++; });
                 function miniCard(bg, ico, val, lbl, valColor) {
                     return '<div class="dt-mini-card"><div class="dt-mini-ico" style="background:' + bg + '">' + ico + '</div>' +
                         '<div><div class="dt-mini-val"' + (valColor ? ' style="color:' + valColor + '"' : '') + '>' + val + '</div>' +
@@ -5779,6 +5908,7 @@
                     miniCard('var(--amber-light)', '🟡', stCount.Open, 'Open', 'var(--amber)') +
                     miniCard('var(--purple-light)', '🔄', stCount.Proses, 'Proses', 'var(--purple)') +
                     miniCard('var(--green-light)', '✅', stCount.Close, 'Close', 'var(--green)') +
+                    miniCard('var(--tj-red-light)', '⚠️', stCount.Overdue, 'Overdue', 'var(--tj-red)') +
                     '</div>';
 
                 function sortMeta(col) {
@@ -5822,21 +5952,20 @@
                         '<div class="dc-foot"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(' + ri + ')">🔍 Detail</button>' + (canEdit(S.user.role) ? '<button class="btn btn-subtle btn-sm" onclick="event.stopPropagation();openAdminEdit(' + ri + ')">✏️ Edit</button>' + (rc === 'Ya' && st !== 'Close' ? '<button class="btn btn-green btn-sm" onclick="event.stopPropagation();approveClose(' + ri + ')">✓ Close</button>' : '') + '<button class="btn btn-red btn-sm" onclick="event.stopPropagation();delConfirm(' + ri + ')">🗑</button>' : (isAdmin ? '' : '<button class="btn btn-amber btn-sm" onclick="event.stopPropagation();openPICEdit(' + ri + ')">✏️ Update</button>')) + '</div></div>';
                 }).join('');
 
-                // Untuk PIC, stF di-force ke 'Open' (lihat di atas) — jangan dihitung sebagai filter aktif.
                 var jenisActive = (S.tableJenis || []).length > 0;
-                var filterCount = [q, (isAdmin ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0);
+                var filterCount = [q, (isAdmin || stF === 'Overdue' ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0);
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || (isAdmin && stF) || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || stF || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
                     '<div class="toolbar dt-toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
-                    (isAdmin ? '<select id="fltStatus" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    '<select id="fltRC" onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
-                    (isAdmin ? '<select id="fltDivisi" onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
-                    '<select id="fltDept" onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+                    (isAdmin ? '<select id="fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : (stF === 'Overdue' ? '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--tj-red-light);color:var(--tj-red);border:1px solid rgba(227,29,40,.2);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600"><span>⚠ Overdue</span><button onclick="clearFilters()" style="background:none;border:none;color:var(--tj-red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter">✕</button></span>' : '')) +
+                    '<select id="fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
+                    (isAdmin ? '<select id="fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
+                    '<select id="fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
                     (canEdit(S.user.role)
                         ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
@@ -5847,10 +5976,10 @@
                     '<div class="filter-toggle-bar"><button class="filter-toggle-btn' + ftbCls + '" onclick="toggleFilterPanel()">🔽 Filter' + ftbBadge + '</button><button class="btn btn-ghost btn-sm" onclick="mobileSearch()" style="flex-shrink:0">🔍</button></div>' +
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
-                    (isAdmin ? '<select id="m_fltStatus" onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option></select>' : '') +
-                    '<select id="m_fltRC" onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
-                    (isAdmin ? '<select id="m_fltDivisi" onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
-                    '<select id="m_fltDept" onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+                    (isAdmin ? '<select id="m_fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : '') +
+                    '<select id="m_fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
+                    (isAdmin ? '<select id="m_fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
+                    '<select id="m_fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
                     (canEdit(S.user.role) ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
                     (filterCount > 0 ? '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Reset Filter</button>' : '') +
                     '</div>' +
@@ -5890,7 +6019,7 @@
             function applyFilter() { S.page = 1; renderTable(); }
             function toggleFilterPanel() { var p = $('filterPanelMobile'); if (!p) return; p.classList.toggle('open'); }
             function mobileSearch() { var p = $('filterPanelMobile'); if (p && !p.classList.contains('open')) p.classList.add('open'); var inp = $('m_srchInput') || $('srchInput'); if (inp) setTimeout(() => inp.focus(), 100); }
-            function clearFilters() { S.tableJenis = []; S.page = 1; renderTable('', '', '', '', '', ''); }
+            function clearFilters() { S.tableJenis = []; S.activeOverdueFilter = false; S.page = 1; renderTable('', '', '', '', '', ''); }
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
             window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = canEdit(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
@@ -6487,7 +6616,9 @@
                 $('picRek').textContent = row['Rekomendasi'] || '—'; $('picProg').value = row['Progres%'] || 0;
                 $('picRC').value = row['Request Close'] || 'Belum'; $('picTL').value = row['Tindak Lanjut'] || '';
                 $('picTG').value = row['Tanggapan Auditee'] || ''; $('picEv').value = row['Link Evidence'] || '';
-                $('evErr').classList.remove('show'); onRCChange(); openModal('mPIC');
+                $('evErr').classList.remove('show'); onRCChange();
+                S._picSnap = { prog: $('picProg').value, rc: $('picRC').value, tl: $('picTL').value, tg: $('picTG').value, ev: $('picEv').value };
+                openModal('mPIC');
             }
             function onRCChange() {
                 var rc = $('picRC').value;
@@ -6539,8 +6670,9 @@
             }
             function fc(lbl, inp) { return '<div class="form-col"><span class="form-label">' + lbl + '</span>' + inp + '</div>'; }
             function getAEVals() { var o = {}; ADMIN_COLS.forEach(c => { var el = $('ae_' + c); if (el) o[c] = el.value; }); return o; }
-            function openAdminEdit(ri) { var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; } S.editIdx = ri; $('adminTitle').textContent = '✏️ Edit Data Temuan'; $('adminBody').innerHTML = buildAdminForm(row); openModal('mAdmin'); }
-            function openAddRow() { S.editIdx = null; $('adminTitle').textContent = '✏️ Input Temuan Baru'; $('adminBody').innerHTML = buildAdminForm(null); var el = $('ae_Tanggal Laporan'); if (el) el.value = new Date().toISOString().split('T')[0]; openModal('mAdmin'); }
+            function _snapAdmin() { S._adminSnap = getAEVals(); }
+            function openAdminEdit(ri) { var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; } S.editIdx = ri; $('adminTitle').textContent = '✏️ Edit Data Temuan'; $('adminBody').innerHTML = buildAdminForm(row); _snapAdmin(); openModal('mAdmin'); }
+            function openAddRow() { S.editIdx = null; $('adminTitle').textContent = '✏️ Input Temuan Baru'; $('adminBody').innerHTML = buildAdminForm(null); var el = $('ae_Tanggal Laporan'); if (el) el.value = new Date().toISOString().split('T')[0]; _snapAdmin(); openModal('mAdmin'); }
             function saveAdminEdit() {
                 var btn = $('btnSaveAdmin'); btn.innerHTML = '<span class="spinner"></span> Menyimpan…'; btn.disabled = true;
                 if (S.editIdx === null) {
@@ -6877,18 +7009,20 @@
                 ensureExcelJS().then(function (ExcelJSLib) {
                     var src = filterDashRows();
 
-                    // Agregasi per (Departemen, Divisi) — dgn status turunan (open/proses/closed).
+                    var now = new Date();
                     var grp = {};
                     src.forEach(function (r) {
                         var dept = String(r['Departemen'] || '—');
                         var div  = String(r['Divisi'] || '—');
                         var key  = dept + ' ||| ' + div;
-                        if (!grp[key]) grp[key] = { dept: dept, div: div, total: 0, open: 0, proses: 0, closed: 0 };
+                        if (!grp[key]) grp[key] = { dept: dept, div: div, total: 0, open: 0, proses: 0, closed: 0, overdue: 0 };
                         grp[key].total++;
                         var st = deriveStatus(r);
                         if (st === 'Close') grp[key].closed++;
                         else if (st === 'Proses') grp[key].proses++;
                         else grp[key].open++;
+                        var dd = r['Due Date'] ? new Date(r['Due Date']) : null;
+                        if (dd && !isNaN(dd) && st !== 'Close' && dd < now) grp[key].overdue++;
                     });
                     var rows = Object.values(grp).sort(function (a, b) {
                         if (a.dept !== b.dept) return a.dept.localeCompare(b.dept);
@@ -6896,8 +7030,8 @@
                     });
 
                     var sumT = src.length;
-                    var sumC = 0, sumPr = 0, sumO = 0;
-                    src.forEach(function (r) { var st = deriveStatus(r); if (st === 'Close') sumC++; else if (st === 'Proses') sumPr++; else sumO++; });
+                    var sumC = 0, sumPr = 0, sumO = 0, sumOd = 0;
+                    src.forEach(function (r) { var st = deriveStatus(r); if (st === 'Close') sumC++; else if (st === 'Proses') sumPr++; else sumO++; var dd2 = r['Due Date'] ? new Date(r['Due Date']) : null; if (dd2 && !isNaN(dd2) && st !== 'Close' && dd2 < now) sumOd++; });
                     var sumPct = sumT > 0 ? (sumC / sumT) : 0;
 
                     var wb = new ExcelJSLib.Workbook();
@@ -6906,7 +7040,7 @@
                     var ws = wb.addWorksheet('Rekap Distribusi');
 
                     // Title
-                    ws.mergeCells('A1:G1');
+                    ws.mergeCells('A1:H1');
                     var c1 = ws.getCell('A1');
                     c1.value = 'Rekap Distribusi Tindak Lanjut Audit';
                     c1.font = { bold: true, size: 14, color: { argb: 'FF0066B3' } };
@@ -6914,7 +7048,7 @@
                     ws.getRow(1).height = 22;
 
                     // Periode
-                    ws.mergeCells('A2:G2');
+                    ws.mergeCells('A2:H2');
                     var c2 = ws.getCell('A2');
                     c2.value = 'Periode: ' + periodLabelHuman() + '  •  Tanggal Export: ' + fmtDDMMYYYY(new Date());
                     c2.font = { italic: true, size: 10, color: { argb: 'FF57534E' } };
@@ -6925,7 +7059,7 @@
                     var sumLbl = ws.addRow(['Ringkasan Keseluruhan']);
                     sumLbl.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF1C1917' } };
 
-                    var sumHdr = ws.addRow(['Total Temuan', 'Total Open', 'Total Proses', 'Total Close', '% Close Keseluruhan']);
+                    var sumHdr = ws.addRow(['Total Temuan', 'Total Open', 'Total Proses', 'Total Overdue', 'Total Close', '% Close Keseluruhan']);
                     sumHdr.height = 20;
                     sumHdr.eachCell(function (cell) {
                         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -6933,19 +7067,18 @@
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
                         cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
                     });
-                    var sumRow = ws.addRow([sumT, sumO, sumPr, sumC, sumPct]);
+                    var sumRow = ws.addRow([sumT, sumO, sumPr, sumOd, sumC, sumPct]);
                     sumRow.eachCell(function (cell) {
                         cell.alignment = { horizontal: 'center' };
                         cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
                     });
-                    sumRow.getCell(5).numFmt = '0.00%';
-                    sumRow.getCell(5).font = { bold: true, color: { argb: sumPct >= 0.8 ? 'FF059669' : sumPct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
+                    sumRow.getCell(6).numFmt = '0.00%';
+                    sumRow.getCell(6).font = { bold: true, color: { argb: sumPct >= 0.8 ? 'FF059669' : sumPct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
 
                     ws.addRow([]); // blank
                     ws.addRow([]); // blank
 
-                    // Detail header (kolom A..G) — kolom "Jumlah Proses" ditambahkan.
-                    var detHdr = ws.addRow(['Departemen', 'Divisi', 'Total Temuan', 'Jumlah Open', 'Jumlah Proses', 'Jumlah Close', '% Close']);
+                    var detHdr = ws.addRow(['Departemen', 'Divisi', 'Total Temuan', 'Jumlah Open', 'Jumlah Proses', 'Jumlah Overdue', 'Jumlah Close', '% Close']);
                     detHdr.height = 22;
                     detHdr.eachCell(function (cell) {
                         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -6955,22 +7088,23 @@
                     });
 
                     if (rows.length === 0) {
-                        var empty = ws.addRow(['Tidak ada data untuk filter saat ini', '', '', '', '', '', '']);
-                        ws.mergeCells('A' + empty.number + ':G' + empty.number);
+                        var empty = ws.addRow(['Tidak ada data untuk filter saat ini', '', '', '', '', '', '', '']);
+                        ws.mergeCells('A' + empty.number + ':H' + empty.number);
                         empty.getCell(1).alignment = { horizontal: 'center' };
                         empty.getCell(1).font = { italic: true, color: { argb: 'FF78716C' } };
                     } else {
                         rows.forEach(function (r) {
                             var pct = r.total > 0 ? (r.closed / r.total) : 0;
-                            var rw = ws.addRow([r.dept, r.div, r.total, r.open, r.proses, r.closed, pct]);
+                            var rw = ws.addRow([r.dept, r.div, r.total, r.open, r.proses, r.overdue, r.closed, pct]);
                             rw.alignment = { vertical: 'middle' };
                             rw.getCell(3).alignment = { horizontal: 'center' };
                             rw.getCell(4).alignment = { horizontal: 'center' };
                             rw.getCell(5).alignment = { horizontal: 'center' };
                             rw.getCell(6).alignment = { horizontal: 'center' };
-                            rw.getCell(7).numFmt = '0.00%';
                             rw.getCell(7).alignment = { horizontal: 'center' };
-                            rw.getCell(7).font = { bold: true, color: { argb: pct >= 0.8 ? 'FF059669' : pct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
+                            rw.getCell(8).numFmt = '0.00%';
+                            rw.getCell(8).alignment = { horizontal: 'center' };
+                            rw.getCell(8).font = { bold: true, color: { argb: pct >= 0.8 ? 'FF059669' : pct >= 0.5 ? 'FFD97706' : 'FFDC2626' } };
                             rw.eachCell(function (cell) {
                                 cell.border = { top: { style: 'hair', color: { argb: 'FFE5DFD3' } }, bottom: { style: 'hair', color: { argb: 'FFE5DFD3' } }, left: { style: 'hair', color: { argb: 'FFE5DFD3' } }, right: { style: 'hair', color: { argb: 'FFE5DFD3' } } };
                             });
@@ -7104,7 +7238,30 @@
                 if (mobileNav) mobileNav.addEventListener('click', function (e) { var it = e.target.closest('.mnav-item'); if (it && it.dataset && it.dataset.tab) switchTab(it.dataset.tab); });
             })();
 
-            document.querySelectorAll('.overlay').forEach(el => el.addEventListener('click', function (e) { if (e.target === el) el.classList.remove('open'); }));
+            function guardClose(id) {
+                if ((id === 'mPIC' || id === 'mAdmin') && _isEditDirty(id)) {
+                    if (!confirm('Perubahan belum disimpan. Tutup form?')) return;
+                }
+                closeModal(id);
+            }
+            function _isEditDirty(overlayId) {
+                if (overlayId === 'mPIC' && S._picSnap) {
+                    var sn = S._picSnap;
+                    return $('picProg').value !== sn.prog || $('picRC').value !== sn.rc || $('picTL').value !== sn.tl || $('picTG').value !== sn.tg || $('picEv').value !== sn.ev;
+                }
+                if (overlayId === 'mAdmin' && S._adminSnap) {
+                    var cur = getAEVals(), prev = S._adminSnap;
+                    return ADMIN_COLS.some(function (c) { return String(cur[c] || '') !== String(prev[c] || ''); });
+                }
+                return false;
+            }
+            document.querySelectorAll('.overlay').forEach(el => el.addEventListener('click', function (e) {
+                if (e.target !== el) return;
+                if ((el.id === 'mPIC' || el.id === 'mAdmin') && _isEditDirty(el.id)) {
+                    if (!confirm('Perubahan belum disimpan. Tutup form?')) return;
+                }
+                el.classList.remove('open');
+            }));
 
             function toast(msg, type) {
                 type = type || 'toast-info';
