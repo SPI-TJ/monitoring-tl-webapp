@@ -4956,7 +4956,7 @@
             }
 
             function switchTab(tab) {
-                if (tab !== 'data') { S.activeOverdueFilter = false; S.activePicStatusFilter = null; }
+                if (tab !== 'data') { S.activeOverdueFilter = false; S.activePicStatusFilter = null; S.tableDashYear = null; S.tableDashMonth = null; }
                 S.tab = tab; buildNav(); destroyCharts();
                 if (tab === 'dashboard') renderDashboard();
                 else if (tab === 'summary') renderSummary();
@@ -4966,7 +4966,7 @@
                 else if (tab === 'users') loadUsers();
             }
 
-            function goToStatus(st) { S.pendingStatusFilter = st; switchTab('data'); }
+            function goToStatus(st) { S.pendingStatusFilter = st; S.pendingDashYear = S.dashYear || null; S.pendingDashMonth = S.dashMonth || null; switchTab('data'); }
             function goToOverdue() { goToStatus('Overdue'); }
             function goToRequestClose() { switchTab('request'); }
 
@@ -5769,7 +5769,7 @@
 
             function renderTable(q, stF, rcF, divF, deptF, katF) {
                 q = q !== undefined ? q : getFV('srchInput');
-                if (S.pendingStatusFilter) { stF = S.pendingStatusFilter; S.pendingStatusFilter = null; S.activeOverdueFilter = stF === 'Overdue'; S.activePicStatusFilter = !isAdminRole(S.user.role) ? stF : null; }
+                if (S.pendingStatusFilter) { stF = S.pendingStatusFilter; S.pendingStatusFilter = null; S.activeOverdueFilter = stF === 'Overdue'; S.activePicStatusFilter = !isAdminRole(S.user.role) ? stF : null; S.tableDashYear = S.pendingDashYear || null; S.tableDashMonth = S.pendingDashMonth || null; S.pendingDashYear = null; S.pendingDashMonth = null; }
                 else if (stF !== undefined) { /* stF sudah diberikan via parameter */ }
                 else if (S.activePicStatusFilter && !isAdminRole(S.user.role)) { stF = S.activePicStatusFilter; }
                 else if (S.activeOverdueFilter && !isAdminRole(S.user.role)) { stF = 'Overdue'; }
@@ -5813,6 +5813,8 @@
                 // mini-card statistik (agar PIC pun melihat jumlah Close). S.filtered = daftar tabel
                 // (PIC menyembunyikan Close).
                 var _nowTs = new Date().getTime();
+                var _tblYear = S.tableDashYear ? Number(S.tableDashYear) : null;
+                var _tblMonth = S.tableDashMonth ? Number(S.tableDashMonth) : null;
                 function _isOverdue(r) {
                     var dd = r['Due Date'] ? new Date(r['Due Date']) : null;
                     return dd && !isNaN(dd.getTime()) && deriveStatus(r) !== 'Close' && dd.getTime() < _nowTs;
@@ -5825,6 +5827,13 @@
                     if (!stF) { stMatch = true; }
                     else if (stF === 'Overdue') { stMatch = _isOverdue(r); }
                     else { stMatch = dSt === stF; }
+                    if (_tblYear || _tblMonth) {
+                        if (!r['Due Date']) return false;
+                        var _dd = new Date(r['Due Date']);
+                        if (isNaN(_dd)) return false;
+                        if (_tblYear && _dd.getFullYear() !== _tblYear) return false;
+                        if (_tblMonth && (_dd.getMonth() + 1) > _tblMonth) return false;
+                    }
                     return m && jOk && stMatch && (!rcF || String(r['Request Close'] || '') === rcF) && (!divF || String(r['Divisi'] || '') === divF) && (!deptF || String(r['Departemen'] || '') === deptF) && (!katF || String(r['Kategori Pemeriksaan'] || '') === katF);
                 }
                 var statScope = S.allRows.filter(_tblMatch);
@@ -5955,15 +5964,22 @@
                 }).join('');
 
                 var jenisActive = (S.tableJenis || []).length > 0;
-                var filterCount = [q, (isAdmin || stF ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0);
+                var hasPeriodFilter = !!(_tblYear || _tblMonth);
+                var periodChipHtml = '';
+                if (hasPeriodFilter) {
+                    var _pLbl = _tblMonth && _tblYear ? 's.d. ' + MONTHS[_tblMonth - 1] + ' ' + _tblYear : _tblYear ? 'Tahun ' + _tblYear : 's.d. ' + MONTHS[_tblMonth - 1];
+                    periodChipHtml = '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--tj-blue-pale);color:var(--tj-blue);border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>📅 ' + _pLbl + '</span><button onclick="S.tableDashYear=null;S.tableDashMonth=null;applyFilter()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter periode">✕</button></span>';
+                }
+                var filterCount = [q, (isAdmin || stF ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0) + (hasPeriodFilter ? 1 : 0);
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || stF || rcF || divF || deptF || katF || jenisActive ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || stF || rcF || divF || deptF || katF || jenisActive || hasPeriodFilter ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
                     '<div class="toolbar dt-toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
+                    periodChipHtml +
                     (isAdmin ? '<select id="fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : (stF ? (function () { var _cc = stF === 'Overdue' ? 'var(--tj-red-light)' : stF === 'Open' ? 'var(--amber-light)' : 'var(--purple-light)'; var _ct = stF === 'Overdue' ? 'var(--tj-red)' : stF === 'Open' ? 'var(--amber)' : 'var(--purple)'; var _ic = stF === 'Overdue' ? '⚠' : stF === 'Open' ? '🟡' : '🔄'; return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + _cc + ';color:' + _ct + ';border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>' + _ic + ' ' + stF + '</span><button onclick="clearFilters()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter">✕</button></span>'; })() : '')) +
                     '<select id="fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
@@ -6021,7 +6037,7 @@
             function applyFilter() { S.page = 1; renderTable(); }
             function toggleFilterPanel() { var p = $('filterPanelMobile'); if (!p) return; p.classList.toggle('open'); }
             function mobileSearch() { var p = $('filterPanelMobile'); if (p && !p.classList.contains('open')) p.classList.add('open'); var inp = $('m_srchInput') || $('srchInput'); if (inp) setTimeout(() => inp.focus(), 100); }
-            function clearFilters() { S.tableJenis = []; S.activeOverdueFilter = false; S.activePicStatusFilter = null; S.page = 1; renderTable('', '', '', '', '', ''); }
+            function clearFilters() { S.tableJenis = []; S.activeOverdueFilter = false; S.activePicStatusFilter = null; S.tableDashYear = null; S.tableDashMonth = null; S.page = 1; renderTable('', '', '', '', '', ''); }
             function toggleFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (!m) return; var isOpen = m.classList.contains('open'); if (isOpen) { m.classList.remove('open'); o.classList.remove('open'); if (b) b.textContent = '＋'; } else { m.classList.add('open'); o.classList.add('open'); if (b) b.textContent = '✕'; } }
             function closeFab() { var m = $('fabMenu'), o = $('fabOverlay'), b = $('fabBtn'); if (m) m.classList.remove('open'); if (o) o.classList.remove('open'); if (b) b.textContent = '＋'; }
             window.addEventListener('resize', function () { var fab = $('fabBtn'); if (fab && S.user) { var show = canEdit(S.user.role) && S.tab === 'data' && window.innerWidth <= 768; fab.style.display = show ? 'flex' : 'none'; if (!show) closeFab(); } });
