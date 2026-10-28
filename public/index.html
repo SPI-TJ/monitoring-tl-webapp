@@ -5865,6 +5865,7 @@
                 var divOpts = '', deptOpts = '';
                 if (isAdmin) { var ds = {}; S.allRows.forEach(r => { if (r['Divisi']) ds[r['Divisi']] = 1; }); divOpts = Object.keys(ds).sort().map(d => '<option value="' + escH(d) + '"' + (divF === d ? ' selected' : '') + '>' + escH(d) + '</option>').join(''); }
                 { var dp = {}; S.allRows.forEach(r => { if (r['Departemen']) dp[r['Departemen']] = 1; }); deptOpts = Object.keys(dp).sort().map(d => '<option value="' + escH(d) + '"' + (deptF === d ? ' selected' : '') + '>' + escH(d) + '</option>').join(''); }
+                var tblYearOpts = ''; { var yrs = {}; S.allRows.forEach(function (r) { var d = r['Due Date']; if (d) { var y = new Date(d).getFullYear(); if (!isNaN(y)) yrs[y] = 1; } }); tblYearOpts = Object.keys(yrs).sort().map(function (y) { return '<option value="' + y + '"' + (_tblYear == y ? ' selected' : '') + '>' + y + '</option>'; }).join(''); }
 
                 // Pills Jenis Pemeriksaan — memakai jArr (sudah dibatasi kategori aktif) di atas.
                 var jenisFilterHtml = '';
@@ -5964,26 +5965,27 @@
                 }).join('');
 
                 var jenisActive = (S.tableJenis || []).length > 0;
-                var hasPeriodFilter = !!(_tblYear || _tblMonth);
-                var periodChipHtml = '';
-                if (hasPeriodFilter) {
-                    var _pLbl = _tblMonth && _tblYear ? 's.d. ' + MONTHS[_tblMonth - 1] + ' ' + _tblYear : _tblYear ? 'Tahun ' + _tblYear : 's.d. ' + MONTHS[_tblMonth - 1];
-                    periodChipHtml = '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--tj-blue-pale);color:var(--tj-blue);border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>📅 ' + _pLbl + '</span><button onclick="S.tableDashYear=null;S.tableDashMonth=null;applyFilter()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter periode">✕</button></span>';
+                var hasMonthFilter = !!_tblMonth;
+                var monthChipHtml = '';
+                if (hasMonthFilter) {
+                    var _mLbl = 's.d. ' + MONTHS[_tblMonth - 1];
+                    monthChipHtml = '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--tj-blue-pale);color:var(--tj-blue);border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>📅 ' + _mLbl + '</span><button onclick="S.tableDashMonth=null;applyFilter()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter bulan">✕</button></span>';
                 }
-                var filterCount = [q, (isAdmin || stF ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0) + (hasPeriodFilter ? 1 : 0);
+                var filterCount = [q, (isAdmin || stF ? stF : ''), rcF, divF, deptF, katF].filter(Boolean).length + (jenisActive ? 1 : 0) + (_tblYear ? 1 : 0) + (hasMonthFilter ? 1 : 0);
                 var ftbCls = filterCount > 0 ? ' has-filter' : '', ftbBadge = filterCount > 0 ? ' <span class="ftb-badge">' + filterCount + '</span>' : '';
                 var pg = pages <= 1 ? '' : '<div class="pagination"><span class="pag-info">Menampilkan ' + ((S.page - 1) * S.PAGE + 1) + '–' + Math.min(S.page * S.PAGE, total) + ' dari ' + total + '</span><div class="pag-ctrl"><button class="btn btn-ghost btn-sm" onclick="goPage(1)" ' + (S.page === 1 ? 'disabled' : '') + '>«</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page - 1) + ')" ' + (S.page === 1 ? 'disabled' : '') + '>‹</button><span class="pag-num">' + S.page + ' / ' + pages + '</span><button class="btn btn-ghost btn-sm" onclick="goPage(' + (S.page + 1) + ')" ' + (S.page === pages ? 'disabled' : '') + '>›</button><button class="btn btn-ghost btn-sm" onclick="goPage(' + pages + ')" ' + (S.page === pages ? 'disabled' : '') + '>»</button></div></div>';
 
                 showMain(
                     '<div class="card">' +
-                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || stF || rcF || divF || deptF || katF || jenisActive || hasPeriodFilter ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
+                    '<div class="card-header"><div><div class="card-title">' + (isAdmin ? '📋 Semua Data Temuan' : '📋 Data Divisi ' + escH(S.user.divisi || '')) + '</div><div class="card-subtitle">' + total + (isAdmin ? ' rekomendasi' : ' rekomendasi aktif') + (q || stF || rcF || divF || deptF || katF || jenisActive || _tblYear || hasMonthFilter ? ' (hasil filter)' : '') + (isAdmin ? '' : ' • rekomendasi yang sudah Close tidak ditampilkan') + '</div></div>' + miniCards + '</div>' +
                     '<div class="toolbar dt-toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
-                    periodChipHtml +
+                    monthChipHtml +
                     (isAdmin ? '<select id="fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : (stF ? (function () { var _cc = stF === 'Overdue' ? 'var(--tj-red-light)' : stF === 'Open' ? 'var(--amber-light)' : 'var(--purple-light)'; var _ct = stF === 'Overdue' ? 'var(--tj-red)' : stF === 'Open' ? 'var(--amber)' : 'var(--purple)'; var _ic = stF === 'Overdue' ? '⚠' : stF === 'Open' ? '🟡' : '🔄'; return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + _cc + ';color:' + _ct + ';border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>' + _ic + ' ' + stF + '</span><button onclick="clearFilters()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter">✕</button></span>'; })() : '')) +
                     '<select id="fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+                    (tblYearOpts ? '<select id="fltYear"' + (_tblYear ? ' class="select-active"' : '') + ' onchange="setTableYear(this.value)" style="min-width:120px"><option value="">Semua Tahun</option>' + tblYearOpts + '</select>' : '') +
                     (canEdit(S.user.role)
                         ? '<button class="btn btn-primary btn-sm" onclick="openAddRow()">✏️ Tambah</button>'
                         : '<button class="btn btn-primary btn-sm" id="btnExportPIC" onclick="exportPICExcel()" title="Download Excel detail temuan sesuai filter aktif">⬇ Download Excel</button>'
@@ -5998,6 +6000,7 @@
                     '<select id="m_fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
+                    (tblYearOpts ? '<select id="m_fltYear"' + (_tblYear ? ' class="select-active"' : '') + ' onchange="setTableYear(this.value)"><option value="">Semua Tahun</option>' + tblYearOpts + '</select>' : '') +
                     (canEdit(S.user.role) ? '' : '<button class="btn btn-primary btn-sm" onclick="exportPICExcel()">⬇ Download Excel</button>') +
                     (filterCount > 0 ? '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Reset Filter</button>' : '') +
                     '</div>' +
@@ -6035,6 +6038,7 @@
             function debounce() { clearTimeout(_dt); _dt = setTimeout(applyFilter, 280); }
             function mDebounce() { clearTimeout(_dt); _dt = setTimeout(applyFilter, 280); }
             function applyFilter() { S.page = 1; renderTable(); }
+            function setTableYear(y) { S.tableDashYear = y || null; S.page = 1; renderTable(); }
             function toggleFilterPanel() { var p = $('filterPanelMobile'); if (!p) return; p.classList.toggle('open'); }
             function mobileSearch() { var p = $('filterPanelMobile'); if (p && !p.classList.contains('open')) p.classList.add('open'); var inp = $('m_srchInput') || $('srchInput'); if (inp) setTimeout(() => inp.focus(), 100); }
             function clearFilters() { S.tableJenis = []; S.activeOverdueFilter = false; S.activePicStatusFilter = null; S.tableDashYear = null; S.tableDashMonth = null; S.page = 1; renderTable('', '', '', '', '', ''); }
