@@ -62,7 +62,10 @@ function normalizeToMMDDYYYY(input) {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s; // fallback: keep original text
 
-  return `${_pad2(d.getMonth() + 1)}/${_pad2(d.getDate())}/${d.getFullYear()}`;
+  // Konversi ke waktu Jakarta (WIB, UTC+7) agar tanggal tidak geser
+  // akibat perbedaan timezone server vs WIB.
+  const jkt = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  return `${_pad2(jkt.getMonth() + 1)}/${_pad2(jkt.getDate())}/${jkt.getFullYear()}`;
 }
 
 /* ─── ensureActivityLog (cached) ────────────────── */
@@ -229,6 +232,17 @@ router.post('/add', async (req, res) => {
         if (header === 'Status')        return row[header] || 'Open';
         if (header === 'Request Close') return 'Belum';
         if (header === 'Progres%')      return 0;
+        if (header === 'Periode TL') {
+          const ddStr = String(row['Due Date'] || '').trim();
+          if (ddStr) {
+            const dd = new Date(ddStr);
+            if (!Number.isNaN(dd.getTime())) {
+              const jkt = new Date(dd.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+              return String(jkt.getFullYear());
+            }
+          }
+          return '';
+        }
         if (DATA_DATE_FIELDS.has(header)) return normalizeToMMDDYYYY(row[header]);
         return row[header] !== undefined && row[header] !== null ? row[header] : '';
       })
@@ -286,11 +300,28 @@ router.put('/update/:rowIndex', async (req, res) => {
 
     const now = new Date().toISOString();
 
+    // Resolve the effective Due Date so "Periode TL" can be derived from it.
+    const effectiveDueDate = (role === 'Admin' || role === 'Admin Audit KNKT')
+      ? (updatedData['Due Date'] !== undefined ? updatedData['Due Date'] : existingObj['Due Date'])
+      : existingObj['Due Date'];
+
     const newRowValues = headers.map(header => {
       if (header === 'Tanggal Close' && String(updatedData['Status'] || '') === 'Close') {
         return normalizeToMMDDYYYY(updatedData[header] || existingObj[header] || now);
       }
       if (header === 'Last Updated') return now;
+
+      if (header === 'Periode TL') {
+        const ddStr = String(effectiveDueDate || '').trim();
+        if (ddStr) {
+          const dd = new Date(ddStr);
+          if (!Number.isNaN(dd.getTime())) {
+            const jkt = new Date(dd.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+            return String(jkt.getFullYear());
+          }
+        }
+        return existingObj[header];
+      }
 
       if (role === 'Admin' || role === 'Admin Audit KNKT') {
         if (updatedData[header] === undefined) return existingObj[header];
