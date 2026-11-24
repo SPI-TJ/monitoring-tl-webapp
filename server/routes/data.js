@@ -140,6 +140,39 @@ function buildStats(rows) {
 ════════════════════════════════════════════════════ */
 
 /**
+ * GET /api/data/org-structure
+ * Baca sheet "Struktur Organisasi" → return array { departemen, divisi, kodeDirektorat }.
+ * Sudah ter-cache otomatis oleh sheetsService (READ_CACHE_TTL).
+ */
+router.get('/org-structure', async (req, res) => {
+  try {
+    const rawRows = await sheetsService.getSheetData('Struktur Organisasi');
+    if (!rawRows || rawRows.length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+    const headers = rawRows[0].map(h => String(h || '').trim());
+    const iDept = headers.indexOf('Nama Departemen');
+    const iDiv  = headers.indexOf('Nama Divisi');
+    const iDir  = headers.indexOf('Kode Direktorat');
+
+    const data = [];
+    for (let i = 1; i < rawRows.length; i++) {
+      const r = rawRows[i];
+      const dept = String((r && r[iDept]) || '').trim();
+      const div  = String((r && r[iDiv])  || '').trim();
+      const dir  = String((r && r[iDir])  || '').trim();
+      if (dept || div || dir) {
+        data.push({ departemen: dept, divisi: div, kodeDirektorat: dir });
+      }
+    }
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('❌ Failed to fetch org structure:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data struktur organisasi.' });
+  }
+});
+
+/**
  * GET /api/data
  * Read cache di sheetsService menangani burst read otomatis.
  */
