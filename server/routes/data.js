@@ -517,4 +517,25 @@ router.delete('/delete/:rowIndex', async (req, res) => {
   }
 });
 
+/* ─── POST /api/data/log-followup ────────────────── */
+router.post('/log-followup', async (req, res) => {
+  try {
+    const { actor, channel, picName, rowSnapshot } = req.body;
+    if (!actor || !channel || !rowSnapshot) {
+      return res.status(400).json({ success: false, message: 'Data tidak lengkap.' });
+    }
+    const role = actor.role || '';
+    if (role !== 'Admin' && role !== 'Admin Audit KNKT') {
+      return res.status(403).json({ success: false, message: 'Akses ditolak.' });
+    }
+    const action = channel === 'wa' ? 'Follow-up WhatsApp' : 'Follow-up Email';
+    const ket = `Penerima: ${picName || '—'} | Judul: ${rowSnapshot['Judul Audit'] || '—'}`;
+    logActivity(actor, action, rowSnapshot, ket);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error logging follow-up:', err);
+    res.status(500).json({ success: false, message: 'Gagal mencatat aktivitas.' });
+  }
+});
+
 module.exports = router;
