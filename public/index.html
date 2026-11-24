@@ -2926,6 +2926,13 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .sd-item:hover, .sd-item.sd-hl { background: var(--tj-blue-pale); color: var(--tj-blue); }
+        /* ── Collapsible card section ── */
+        .card-toggle { cursor: pointer; user-select: none; }
+        .card-toggle .toggle-arrow { display: inline-block; transition: transform .2s; margin-right: 6px; font-size: 12px; color: var(--text3); }
+        .card-toggle.collapsed .toggle-arrow { transform: rotate(-90deg); }
+        .card-collapse { overflow: hidden; transition: max-height .25s ease, opacity .2s; max-height: 2000px; opacity: 1; }
+        .card-collapse.closed { max-height: 0; opacity: 0; }
+
         .sd-clear { color: var(--red); font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--border); }
         .sd-clear:hover { background: rgba(155,28,28,.08); color: var(--red); }
         .sd-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); font-style: italic; }
@@ -4724,6 +4731,56 @@
             </div>
         </div>
 
+        <!-- Kontak PIC -->
+        <div class="overlay" id="mContact">
+            <div class="modal modal-sm">
+                <div class="modal-head">
+                    <h3 id="ctTitle">Tambah PIC</h3>
+                    <button class="btn-close" onclick="closeModal('mContact')">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-col full">
+                            <span class="form-label">Nama PIC <span class="req">*</span></span>
+                            <input type="text" id="ct_nama" placeholder="Nama lengkap PIC" />
+                        </div>
+                        <div class="form-col">
+                            <span class="form-label">Nomor WA <span class="req">*</span></span>
+                            <input type="text" id="ct_wa" placeholder="08xxxxxxxxxx" />
+                        </div>
+                        <div class="form-col">
+                            <span class="form-label">Email <span class="req">*</span></span>
+                            <input type="email" id="ct_email" placeholder="email@domain.com" />
+                        </div>
+                        <div class="form-col">
+                            <span class="form-label">Departemen <span class="req">*</span></span>
+                            <div class="sd-wrap">
+                                <input type="text" id="ct_dept" onfocus="_ctOpen('dept')" oninput="_ctTyping('dept')" onblur="_ctBlur('dept')" autocomplete="off" placeholder="Ketik untuk mencari…"/>
+                                <span class="sd-arrow">▼</span>
+                                <div class="sd-list" id="ctsd_dept"></div>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <span class="form-label">Divisi <span class="req">*</span></span>
+                            <div class="sd-wrap">
+                                <input type="text" id="ct_div" onfocus="_ctOpen('div')" oninput="_ctTyping('div')" onblur="_ctBlur('div')" autocomplete="off" placeholder="Ketik untuk mencari…"/>
+                                <span class="sd-arrow">▼</span>
+                                <div class="sd-list" id="ctsd_div"></div>
+                            </div>
+                        </div>
+                        <div class="form-col full">
+                            <span class="form-label">Catatan</span>
+                            <textarea id="ct_catatan" rows="2" placeholder="Catatan (opsional)"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn btn-ghost" onclick="closeModal('mContact')">Batal</button>
+                    <button class="btn btn-primary" id="btnSaveContact" onclick="saveContact()">💾 Simpan</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Detail -->
         <div class="overlay" id="mDetail">
             <div class="modal modal-lg">
@@ -4762,7 +4819,11 @@
                     addUser: (u, p, r, d, n) => fetch(API_BASE + '/users/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
                     updateUser: (u, p, r, d, n) => fetch(API_BASE + '/users/update/' + u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
                     deleteUser: u => fetch(API_BASE + '/users/delete/' + u, { method: 'DELETE' }).then(r => r.json()),
-                    getOrgStructure: () => fetch(API_BASE + '/data/org-structure').then(r => r.json())
+                    getOrgStructure: () => fetch(API_BASE + '/data/org-structure').then(r => r.json()),
+                    getContacts: (role) => fetch(API_BASE + '/users/contacts?role=' + encodeURIComponent(role)).then(r => r.json()),
+                    addContact: (role, data) => fetch(API_BASE + '/users/contacts/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: role, data: data }) }).then(r => r.json()),
+                    updateContact: (ri, role, data, verifyNama) => fetch(API_BASE + '/users/contacts/update/' + ri, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: role, data: data, verifyNama: verifyNama }) }).then(r => r.json()),
+                    deleteContact: (ri, role, verifyNama) => fetch(API_BASE + '/users/contacts/delete/' + ri + '?role=' + encodeURIComponent(role) + '&verifyNama=' + encodeURIComponent(verifyNama), { method: 'DELETE' }).then(r => r.json())
                 };
             })();
         </script>
@@ -4784,7 +4845,10 @@
                 sumMode: 'judul', sumQuery: '', sumSearched: false,
                 /* Log Activity (Audit Trail): data + state filter/sort + timestamp fetch terakhir. */
                 actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} },
-                orgData: null
+                orgData: null,
+                contacts: [], _usersCache: [], contactSearch: '', contactFltDept: '', contactFltDiv: '',
+                editContactIdx: null, _editContactVerify: null,
+                secUserOpen: true, secContactOpen: true
             };
 
             /* Tab Admin: Tidak ada actlog */
@@ -6956,9 +7020,15 @@
                USER MANAGEMENT
             ══════════════════════════════════════ */
             function loadUsers() {
-                showMain('<div class="loading-state"><span class="spinner spinner-dark"></span> Memuat users…</div>');
-                API.getUsers().then(function (r) { if (!r || r.error) { showErrBox('Gagal memuat users.', r ? r.error : 'Null'); return; } renderUsers(r.users || []); }).catch(e => showErrBox('Gagal.', e.message));
+                showMain('<div class="loading-state"><span class="spinner spinner-dark"></span> Memuat data…</div>');
+                Promise.all([API.getUsers(), API.getContacts(S.user.role)]).then(function (res) {
+                    if (!res[0] || res[0].error) { showErrBox('Gagal memuat users.', res[0] ? res[0].error : 'Null'); return; }
+                    S._usersCache = res[0].users || [];
+                    S.contacts = (res[1] && res[1].success) ? (res[1].contacts || []) : [];
+                    renderUsersTab();
+                }).catch(function (e) { showErrBox('Gagal.', e.message); });
             }
+            function renderUsersTab() { renderUsers(S._usersCache || []); }
             function renderUsers(users) {
                 var rows = users.map(function (u, idx) {
                     var pwdId = 'pwd-val-' + idx, maskedPwd = u['Password'] ? '••••••••' : '—', realPwd = escH(String(u['Password'] || ''));
@@ -6972,9 +7042,11 @@
                         '<div class="dc-body" style="padding:8px 14px"><div class="dc-field-lbl">Username</div><div class="dc-field-val mono">' + escH(u['Username'] || '') + '</div><div class="dc-field-lbl" style="margin-top:6px">Password</div><div class="dc-field-val" style="display:flex;align-items:center;gap:6px"><span id="' + mPwdId + '" class="mono" style="letter-spacing:.08em;font-size:13px">' + maskedPwd + '</span>' + (u['Password'] ? '<button class="btn btn-subtle btn-sm" data-pwd="' + realPwd + '" data-masked="' + maskedPwd + '" data-show="0" onclick="togglePwdCell(this,\'' + mPwdId + '\')" style="padding:2px 7px;font-size:13px">👁</button>' : '') + '</div></div>' +
                         '<div class="dc-foot"><button class="btn btn-subtle btn-sm" data-un="' + escH(String(u['Username'] || '')) + '" onclick="openEditUser(this.dataset.un)">✏️ Edit</button><button class="btn btn-red btn-sm" data-un="' + escH(String(u['Username'] || '')) + '" onclick="delUser(this.dataset.un)">🗑 Hapus</button></div></div>';
                 }).join('');
-                showMain('<div class="card"><div class="card-header"><div><div class="card-title">👤 Manajemen User</div><div class="card-subtitle">' + users.length + ' user terdaftar</div></div><button class="btn btn-primary btn-sm" onclick="openAddUser()">+ Tambah User</button></div>' +
-                    '<div class="table-scroll"><table><thead><tr><th>Username</th><th>Role</th><th>Divisi</th><th>Nama</th><th>Password</th><th>Aksi</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-                    '<div class="data-cards">' + uCards + '</div></div>');
+                var uOpen = S.secUserOpen;
+                var userHtml = '<div class="card"><div class="card-header card-toggle' + (uOpen ? '' : ' collapsed') + '" onclick="S.secUserOpen=!S.secUserOpen;renderUsersTab()"><div><div class="card-title"><span class="toggle-arrow">▼</span>👤 Manajemen User</div><div class="card-subtitle">' + users.length + ' user terdaftar</div></div><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openAddUser()">+ Tambah User</button></div>' +
+                    '<div class="card-collapse' + (uOpen ? '' : ' closed') + '"><div class="table-scroll"><table><thead><tr><th>Username</th><th>Role</th><th>Divisi</th><th>Nama</th><th>Password</th><th>Aksi</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+                    '<div class="data-cards">' + uCards + '</div></div></div>';
+                showMain(userHtml + _buildContactsHtml());
             }
             function openAddUser() { S.editUser = null; $('userTitle').textContent = 'Tambah User';['uUser', 'uPass', 'uDiv', 'uNama'].forEach(i => $(i).value = ''); $('uRole').value = 'PIC'; $('uUser').disabled = false; toggleDiv(); openModal('mUser'); }
             function openEditUser(username) {
@@ -7000,6 +7072,153 @@
                 else { if (!u) { toast('Username wajib.', 'toast-error'); btn.innerHTML = '💾 Simpan'; btn.disabled = false; return; } API.addUser(u, p, r, d, n).then(ok).catch(fail); }
             }
             function delUser(username) { if (!confirm('Hapus user "' + username + '"?')) return; API.deleteUser(username).then(function (r) { if (r && r.success) { toast('User dihapus!', 'toast-success'); loadUsers(); } else toast((r && r.message) || 'Gagal.', 'toast-error'); }).catch(e => toast('Error: ' + e.message, 'toast-error')); }
+
+            /* ══════════════════════════════════════
+               KONTAK PIC MANAGEMENT
+            ══════════════════════════════════════ */
+            var _ctItems = { dept: [], div: [] };
+            function _ctOrgOpts(field) {
+                if (!S.orgData || !S.orgData.length) return [];
+                var key = field === 'dept' ? 'departemen' : 'divisi';
+                var otherKey = field === 'dept' ? 'divisi' : 'departemen';
+                var otherId = field === 'dept' ? 'ct_div' : 'ct_dept';
+                var filtered = S.orgData;
+                var ov = $(otherId) ? $(otherId).value.trim() : '';
+                if (ov && S.orgData.some(function (r) { return r[otherKey] === ov; })) {
+                    filtered = filtered.filter(function (r) { return r[otherKey] === ov; });
+                }
+                var seen = {}, opts = [];
+                filtered.forEach(function (r) { var v = r[key]; if (v && !seen[v]) { seen[v] = 1; opts.push(v); } });
+                return opts.sort();
+            }
+            function _ctRender(field) {
+                var listEl = $('ctsd_' + field); if (!listEl) return;
+                var input = $(field === 'dept' ? 'ct_dept' : 'ct_div');
+                var q = input ? input.value.trim().toLowerCase() : '';
+                var opts = _ctOrgOpts(field);
+                if (q) opts = opts.filter(function (o) { return o.toLowerCase().indexOf(q) !== -1; });
+                _ctItems[field] = opts;
+                if (!S.orgData) { listEl.innerHTML = '<div class="sd-loading">Memuat data…</div>'; return; }
+                var clearBtn = (input && input.value.trim()) ? '<div class="sd-item sd-clear" onmousedown="_ctClear(\'' + field + '\')">✕ Hapus Pilihan</div>' : '';
+                if (!opts.length) { listEl.innerHTML = clearBtn + '<div class="sd-empty">Tidak ada data</div>'; return; }
+                listEl.innerHTML = clearBtn + opts.map(function (o, i) {
+                    return '<div class="sd-item" onmousedown="_ctPick(\'' + field + '\',' + i + ')">' + escH(o) + '</div>';
+                }).join('');
+            }
+            function _ctPick(field, idx) {
+                var id = field === 'dept' ? 'ct_dept' : 'ct_div';
+                var el = $(id); if (el) el.value = (_ctItems[field] || [])[idx] || '';
+                var l = $('ctsd_' + field); if (l) l.classList.remove('open');
+                _ctCascade(field);
+            }
+            function _ctClear(field) {
+                var id = field === 'dept' ? 'ct_dept' : 'ct_div';
+                var el = $(id); if (el) el.value = '';
+                var l = $('ctsd_' + field); if (l) l.classList.remove('open');
+            }
+            function _ctCascade(changed) {
+                if (!S.orgData || !S.orgData.length) return;
+                var other = changed === 'dept' ? 'div' : 'dept';
+                var otherId = other === 'dept' ? 'ct_dept' : 'ct_div';
+                var el = $(otherId); if (!el) return;
+                var cur = el.value.trim();
+                var opts = _ctOrgOpts(other);
+                if (cur && opts.length && opts.indexOf(cur) === -1) el.value = '';
+                if (opts.length === 1 && !el.value.trim()) el.value = opts[0];
+            }
+            function _ctOpen(field) { _ctRender(field); var l = $('ctsd_' + field); if (l) l.classList.add('open'); }
+            function _ctTyping(field) { _ctRender(field); var l = $('ctsd_' + field); if (l) l.classList.add('open'); }
+            function _ctBlur(field) { setTimeout(function () { var l = $('ctsd_' + field); if (l) l.classList.remove('open'); }, 160); }
+
+            function _validateEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+            function _validatePhone(v) { return /^[0-9+\-\s()]{8,20}$/.test(v); }
+            function _waLink(num) { var d = String(num || '').replace(/[^0-9]/g, ''); if (d.startsWith('0')) d = '62' + d.substring(1); return 'https://wa.me/' + d; }
+            function _fmtWa(v) { if (!v) return '—'; return '<a href="' + _waLink(v) + '" target="_blank" style="color:var(--tj-blue);text-decoration:none" title="Chat WhatsApp">💬 ' + escH(v) + '</a>'; }
+            function _fmtEmail(v) { if (!v) return '—'; return '<a href="mailto:' + escH(v) + '" style="color:var(--tj-blue);text-decoration:none" title="Kirim Email">✉️ ' + escH(v) + '</a>'; }
+
+            function openAddContact() {
+                S.editContactIdx = null; S._editContactVerify = null;
+                $('ctTitle').textContent = 'Tambah PIC';
+                ['ct_nama', 'ct_wa', 'ct_email', 'ct_dept', 'ct_div', 'ct_catatan'].forEach(function (id) { var el = $(id); if (el) el.value = ''; });
+                _fetchOrgData(function () {}); openModal('mContact');
+            }
+            function openEditContact(ri) {
+                var c = (S.contacts || []).find(function (x) { return x._rowIndex === ri; });
+                if (!c) { toast('Kontak tidak ditemukan.', 'toast-error'); return; }
+                S.editContactIdx = ri;
+                S._editContactVerify = c['Nama PIC'] || '';
+                $('ctTitle').textContent = 'Edit PIC';
+                $('ct_nama').value = c['Nama PIC'] || '';
+                $('ct_wa').value = c['Nomor WA PIC'] || '';
+                $('ct_email').value = c['Email PIC'] || '';
+                $('ct_dept').value = c['Nama Departemen'] || '';
+                $('ct_div').value = c['Nama Divisi'] || '';
+                $('ct_catatan').value = c['Catatan'] || '';
+                _fetchOrgData(function () {}); openModal('mContact');
+            }
+            function saveContact() {
+                var nama = $('ct_nama').value.trim(), wa = $('ct_wa').value.trim(), email = $('ct_email').value.trim();
+                var dept = $('ct_dept').value.trim(), div = $('ct_div').value.trim(), catatan = $('ct_catatan').value.trim();
+                if (!nama || !wa || !email || !dept || !div) { toast('Nama, No. WA, Email, Departemen, dan Divisi wajib diisi.', 'toast-error'); return; }
+                if (!_validateEmail(email)) { toast('Format email tidak valid.', 'toast-error'); return; }
+                if (!_validatePhone(wa)) { toast('Format nomor WA tidak valid.', 'toast-error'); return; }
+                var data = { 'Nama PIC': nama, 'Nomor WA PIC': wa, 'Email PIC': email, 'Nama Departemen': dept, 'Nama Divisi': div, 'Catatan': catatan };
+                var btn = $('btnSaveContact'); btn.innerHTML = '<span class="spinner"></span> Menyimpan…'; btn.disabled = true;
+                var done = function (r) { btn.innerHTML = '💾 Simpan'; btn.disabled = false; if (r && r.success) { closeModal('mContact'); toast(r.message || 'Berhasil!', 'toast-success'); loadUsers(); } else toast((r && r.message) || 'Gagal.', 'toast-error'); };
+                var fail = function (e) { btn.innerHTML = '💾 Simpan'; btn.disabled = false; toast('Error: ' + e.message, 'toast-error'); };
+                if (S.editContactIdx) {
+                    API.updateContact(S.editContactIdx, S.user.role, data, S._editContactVerify).then(done).catch(fail);
+                } else {
+                    API.addContact(S.user.role, data).then(done).catch(fail);
+                }
+            }
+            function delContact(ri, nama, dept) {
+                if (!confirm('Hapus PIC "' + nama + '" dari departemen "' + dept + '"?')) return;
+                API.deleteContact(ri, S.user.role, nama).then(function (r) {
+                    if (r && r.success) { toast('Kontak PIC dihapus!', 'toast-success'); loadUsers(); }
+                    else toast((r && r.message) || 'Gagal.', 'toast-error');
+                }).catch(function (e) { toast('Error: ' + e.message, 'toast-error'); });
+            }
+
+            function _buildContactsHtml() {
+                var contacts = S.contacts || [];
+                var search = (S.contactSearch || '').toLowerCase();
+                var fD = S.contactFltDept || '', fV = S.contactFltDiv || '';
+                var filtered = contacts.filter(function (c) {
+                    if (fD && c['Nama Departemen'] !== fD) return false;
+                    if (fV && c['Nama Divisi'] !== fV) return false;
+                    if (search) {
+                        var h = [c['Nama PIC'], c['Nomor WA PIC'], c['Email PIC'], c['Nama Departemen'], c['Nama Divisi']].join(' ').toLowerCase();
+                        if (h.indexOf(search) === -1) return false;
+                    }
+                    return true;
+                });
+                var depts = {}, divs = {};
+                contacts.forEach(function (c) { var d = c['Nama Departemen']; if (d) depts[d] = 1; var v = c['Nama Divisi']; if (v) divs[v] = 1; });
+                var dOpts = Object.keys(depts).sort().map(function (d) { return '<option value="' + escH(d) + '"' + (fD === d ? ' selected' : '') + '>' + escH(d) + '</option>'; }).join('');
+                var vOpts = Object.keys(divs).sort().map(function (d) { return '<option value="' + escH(d) + '"' + (fV === d ? ' selected' : '') + '>' + escH(d) + '</option>'; }).join('');
+                var rows = filtered.map(function (c) {
+                    return '<tr><td>' + escH(c['Nama PIC'] || '') + '</td><td class="mono">' + _fmtWa(c['Nomor WA PIC']) + '</td><td>' + _fmtEmail(c['Email PIC']) + '</td><td>' + escH(c['Nama Departemen'] || '') + '</td><td>' + escH(c['Nama Divisi'] || '') + '</td><td style="max-width:150px">' + escH(c['Catatan'] || '—') + '</td>' +
+                        '<td><div style="display:flex;gap:6px"><button class="btn btn-subtle btn-sm" onclick="openEditContact(' + c._rowIndex + ')">✏️</button>' +
+                        '<button class="btn btn-red btn-sm" data-ri="' + c._rowIndex + '" data-nama="' + escH(c['Nama PIC'] || '') + '" data-dept="' + escH(c['Nama Departemen'] || '') + '" onclick="delContact(+this.dataset.ri,this.dataset.nama,this.dataset.dept)">🗑</button></div></td></tr>';
+                }).join('');
+                var cards = filtered.map(function (c) {
+                    return '<div class="dc" style="cursor:default"><div class="dc-head"><div class="dc-meta"><div class="dc-judul" style="-webkit-line-clamp:1">' + escH(c['Nama PIC'] || '') + '</div><div class="dc-tags">' + (c['Nama Departemen'] ? '<span style="font-size:11px;color:var(--text3)">' + escH(c['Nama Departemen']) + '</span>' : '') + (c['Nama Divisi'] ? '<span style="font-size:11px;color:var(--text3)">' + escH(c['Nama Divisi']) + '</span>' : '') + '</div></div></div>' +
+                        '<div class="dc-body" style="padding:8px 14px"><div class="dc-field-lbl">No. WA</div><div class="dc-field-val mono">' + _fmtWa(c['Nomor WA PIC']) + '</div><div class="dc-field-lbl" style="margin-top:6px">Email</div><div class="dc-field-val">' + _fmtEmail(c['Email PIC']) + '</div>' + (c['Catatan'] ? '<div class="dc-field-lbl" style="margin-top:6px">Catatan</div><div class="dc-field-val">' + escH(c['Catatan']) + '</div>' : '') + '</div>' +
+                        '<div class="dc-foot"><button class="btn btn-subtle btn-sm" onclick="openEditContact(' + c._rowIndex + ')">✏️ Edit</button><button class="btn btn-red btn-sm" data-ri="' + c._rowIndex + '" data-nama="' + escH(c['Nama PIC'] || '') + '" data-dept="' + escH(c['Nama Departemen'] || '') + '" onclick="delContact(+this.dataset.ri,this.dataset.nama,this.dataset.dept)">🗑 Hapus</button></div></div>';
+                }).join('');
+                var cOpen = S.secContactOpen;
+                var hdr = '<div class="card" style="margin-top:20px"><div class="card-header card-toggle' + (cOpen ? '' : ' collapsed') + '" onclick="S.secContactOpen=!S.secContactOpen;renderUsersTab()"><div><div class="card-title"><span class="toggle-arrow">▼</span>📇 Kontak PIC</div><div class="card-subtitle">' + contacts.length + ' PIC terdaftar</div></div><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openAddContact()">+ Tambah PIC</button></div>';
+                if (!contacts.length) {
+                    return hdr + '<div class="card-collapse' + (cOpen ? '' : ' closed') + '"><div style="padding:40px 20px;text-align:center;color:var(--text3)">Belum ada data kontak PIC.</div></div></div>';
+                }
+                return hdr + '<div class="card-collapse' + (cOpen ? '' : ' closed') + '">' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 14px"><input type="text" placeholder="🔍 Cari nama, WA, email…" value="' + escH(S.contactSearch || '') + '" oninput="S.contactSearch=this.value;renderUsersTab()" style="flex:1;min-width:200px"/>' +
+                    '<select onchange="S.contactFltDept=this.value;S.contactFltDiv=\'\';renderUsersTab()" style="min-width:140px"><option value="">Semua Departemen</option>' + dOpts + '</select>' +
+                    '<select onchange="S.contactFltDiv=this.value;renderUsersTab()" style="min-width:140px"><option value="">Semua Divisi</option>' + vOpts + '</select></div>' +
+                    '<div class="table-scroll"><table><thead><tr><th>Nama PIC</th><th>No. WA</th><th>Email</th><th>Departemen</th><th>Divisi</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+                    '<div class="data-cards">' + cards + '</div></div></div>';
+            }
 
             /* ══════════════════════════════════════
                EXCEL EXPORT  (lazy-load ExcelJS)
