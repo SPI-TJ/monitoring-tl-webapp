@@ -2938,6 +2938,15 @@
         .sd-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); font-style: italic; }
         .sd-loading { padding: 8px 12px; font-size: 12px; color: var(--text3); text-align: center; }
 
+        .fu-pic-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+        .fu-pic-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); cursor: pointer; transition: background var(--t); }
+        .fu-pic-item:hover { background: var(--tj-blue-pale); }
+        .fu-pic-item input[type="radio"] { accent-color: var(--tj-blue); flex-shrink: 0; }
+        .fu-pic-name { font-weight: 600; font-size: 13px; }
+        .fu-pic-detail { font-size: 11px; color: var(--text3); margin-top: 2px; }
+        .fu-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; color: var(--text2); font-family: inherit; }
+        .fu-section-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+
         /* Section heading (numbered) — dipakai di modal Update Progres */
         .sec-head {
             display: flex;
@@ -4798,6 +4807,23 @@
             </div>
         </div>
 
+        <!-- Follow-up Modal -->
+        <div class="overlay" id="mFollowUp">
+            <div class="modal" style="max-width:540px">
+                <div class="modal-head">
+                    <div>
+                        <h3 id="fuTitle">Follow-up Temuan</h3>
+                        <div class="mhsub" id="fuSub"></div>
+                    </div>
+                    <button class="btn-close" onclick="closeModal('mFollowUp')">✕</button>
+                </div>
+                <div class="modal-body" id="fuBody"></div>
+                <div class="modal-foot" id="fuFoot">
+                    <button class="btn btn-ghost" onclick="closeModal('mFollowUp')">Batal</button>
+                </div>
+            </div>
+        </div>
+
         <div id="toastArea"></div>
 
         <!-- ════ SCRIPTS ════ -->
@@ -4823,7 +4849,8 @@
                     getContacts: (role) => fetch(API_BASE + '/users/contacts?role=' + encodeURIComponent(role)).then(r => r.json()),
                     addContact: (role, data) => fetch(API_BASE + '/users/contacts/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: role, data: data }) }).then(r => r.json()),
                     updateContact: (ri, role, data, verifyNama) => fetch(API_BASE + '/users/contacts/update/' + ri, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: role, data: data, verifyNama: verifyNama }) }).then(r => r.json()),
-                    deleteContact: (ri, role, verifyNama) => fetch(API_BASE + '/users/contacts/delete/' + ri + '?role=' + encodeURIComponent(role) + '&verifyNama=' + encodeURIComponent(verifyNama), { method: 'DELETE' }).then(r => r.json())
+                    deleteContact: (ri, role, verifyNama) => fetch(API_BASE + '/users/contacts/delete/' + ri + '?role=' + encodeURIComponent(role) + '&verifyNama=' + encodeURIComponent(verifyNama), { method: 'DELETE' }).then(r => r.json()),
+                    logFollowUp: (actor, channel, picName, rowSnapshot) => fetch(API_BASE + '/data/log-followup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actor, channel, picName, rowSnapshot }) }).then(r => r.json())
                 };
             })();
         </script>
@@ -6450,6 +6477,7 @@
                 if (a.indexOf('hapus') >= 0 || a.indexOf('delete') >= 0) return { icon: '🗑️', cls: 'act-delete', badge: 'sum-b-red' };
                 if (a.indexOf('edit') >= 0) return { icon: '✏️', cls: 'act-edit', badge: 'sum-b-blue' };
                 if (a.indexOf('login') >= 0) return { icon: '🔑', cls: 'act-edit', badge: 'sum-b-blue' };
+                if (a.indexOf('follow-up') >= 0 || a.indexOf('follow up') >= 0) return { icon: '📨', cls: 'act-edit', badge: 'sum-b-blue' };
                 return { icon: '📝', cls: '', badge: 'sum-b-gray' };
             }
             function actActionBadge(action) { return '<span class="sum-badge ' + actActionMeta(action).badge + '">' + escH(String(action || '—')) + '</span>'; }
@@ -6716,6 +6744,159 @@
             }
 
             /* ══════════════════════════════════════
+               FOLLOW-UP VIA WA / EMAIL
+            ══════════════════════════════════════ */
+            function _fuFindPICs(row) {
+                var dept = String(row['Departemen'] || '').trim().toLowerCase();
+                var div = String(row['Divisi'] || '').trim().toLowerCase();
+                if (!S.contacts || !S.contacts.length) return [];
+                return S.contacts.filter(function (c) {
+                    var cDept = String(c['Nama Departemen'] || '').trim().toLowerCase();
+                    var cDiv = String(c['Nama Divisi'] || '').trim().toLowerCase();
+                    if (dept && div) return cDept === dept && cDiv === div;
+                    if (dept) return cDept === dept;
+                    if (div) return cDiv === div;
+                    return false;
+                });
+            }
+
+            function _fuEnsureContacts(cb) {
+                if (S.contacts && S.contacts.length) { cb(); return; }
+                API.getContacts(S.user.role).then(function (r) {
+                    S.contacts = (r && r.contacts) || [];
+                    cb();
+                }).catch(function () { toast('Gagal memuat data kontak PIC.', 'toast-error'); });
+            }
+
+            function _fuBuildWAMsg(row, picName) {
+                var f = function (v) { return String(v || '').trim() || '-'; };
+                return 'Yth. Bapak/Ibu ' + f(picName) + ',\n\n' +
+                    'Kami dari Satuan Pengawasan Intern (SPI) PT Transportasi Jakarta ingin melakukan follow-up atas tindak lanjut temuan audit berikut:\n\n' +
+                    '*INFORMASI TEMUAN AUDIT*\n\n' +
+                    'Judul Audit:\n' + f(row['Judul Audit']) + '\n\n' +
+                    'Kode Direktorat:\n' + f(row['Kode Direktorat']) + '\n\n' +
+                    'Departemen:\n' + f(row['Departemen']) + '\n\n' +
+                    'Divisi:\n' + f(row['Divisi']) + '\n\n' +
+                    'Due Date:\n' + fmtDate(row['Due Date']) + '\n\n' +
+                    'Status:\n' + deriveStatus(row) + '\n\n' +
+                    '*TEMUAN PEMERIKSAAN*\n' + f(row['Temuan Pemeriksaan']) + '\n\n' +
+                    '*REKOMENDASI*\n' + f(row['Rekomendasi']) + '\n\n' +
+                    '*TINDAK LANJUT*\n' + f(row['Tindak Lanjut']) + '\n\n' +
+                    'Mohon bantuan Bapak/Ibu untuk menyampaikan perkembangan tindak lanjut atas temuan dan rekomendasi tersebut.\n\n' +
+                    'Apabila terdapat perkembangan atau dokumen pendukung, mohon dapat disampaikan melalui portal monitoring tindak lanjut audit.\n\n' +
+                    'Terima kasih atas perhatian dan kerja samanya.\n\n' +
+                    'Satuan Pengawasan Intern (SPI)\nPT Transportasi Jakarta';
+            }
+
+            function _fuBuildEmailBody(row, picName) {
+                var f = function (v) { return String(v || '').trim() || '-'; };
+                return 'Yth. Bapak/Ibu ' + f(picName) + ',\n\n' +
+                    'Dalam rangka pemantauan tindak lanjut hasil audit oleh Satuan Pengawasan Intern (SPI) PT Transportasi Jakarta, kami ingin mengingatkan dan melakukan follow-up atas temuan audit berikut:\n\n' +
+                    'INFORMASI TEMUAN AUDIT\n\n' +
+                    'Judul Audit: ' + f(row['Judul Audit']) + '\n' +
+                    'Kode Direktorat: ' + f(row['Kode Direktorat']) + '\n' +
+                    'Departemen: ' + f(row['Departemen']) + '\n' +
+                    'Divisi: ' + f(row['Divisi']) + '\n' +
+                    'Due Date: ' + fmtDate(row['Due Date']) + '\n' +
+                    'Status: ' + deriveStatus(row) + '\n\n' +
+                    'TEMUAN PEMERIKSAAN:\n' + f(row['Temuan Pemeriksaan']) + '\n\n' +
+                    'REKOMENDASI:\n' + f(row['Rekomendasi']) + '\n\n' +
+                    'TINDAK LANJUT:\n' + f(row['Tindak Lanjut']) + '\n\n' +
+                    'Mohon bantuan Bapak/Ibu untuk menyampaikan perkembangan tindak lanjut atas temuan dan rekomendasi tersebut melalui Portal Monitoring Tindak Lanjut Audit.\n\n' +
+                    'Terima kasih atas perhatian dan kerja samanya.\n\n' +
+                    'Hormat kami,\nSatuan Pengawasan Intern (SPI)\nPT Transportasi Jakarta';
+            }
+
+            function openFollowUp(mode, ri) {
+                var row = findRow(ri);
+                if (!row) { toast('Data tidak ditemukan.', 'toast-error'); return; }
+                S._fuMode = mode;
+                S._fuRI = ri;
+
+                _fuEnsureContacts(function () {
+                    var pics = _fuFindPICs(row);
+                    if (!pics.length) {
+                        toast('Kontak PIC belum tersedia untuk Departemen/Divisi ini. Tambahkan di tab User.', 'toast-error');
+                        return;
+                    }
+                    _fuShowPicker(mode, pics, row);
+                });
+            }
+
+            function _fuShowPicker(mode, pics, row) {
+                var isWA = mode === 'wa';
+                $('fuTitle').textContent = isWA ? 'Follow-up via WhatsApp' : 'Follow-up via Email';
+                $('fuSub').textContent = (row['Judul Audit'] || '') + ' — ' + (row['Divisi'] || '');
+                var html = '<div class="fu-section-label">Pilih Penerima</div><div class="fu-pic-list">';
+                pics.forEach(function (p, i) {
+                    var contact = isWA ? (p['Nomor WA PIC'] || '-') : (p['Email PIC'] || '-');
+                    html += '<label class="fu-pic-item" for="fu_' + i + '">' +
+                        '<input type="radio" name="fuPic" id="fu_' + i + '" value="' + i + '"' + (i === 0 ? ' checked' : '') + '/>' +
+                        '<div><div class="fu-pic-name">' + escH(p['Nama PIC'] || '-') + '</div>' +
+                        '<div class="fu-pic-detail">' + escH(p['Nama Departemen'] || '') + ' · ' + escH(p['Nama Divisi'] || '') + '</div>' +
+                        '<div class="fu-pic-detail">' + (isWA ? '💬 ' : '📧 ') + escH(contact) + '</div></div></label>';
+                });
+                html += '</div>';
+                $('fuBody').innerHTML = html;
+                S._fuPICs = pics;
+                $('fuFoot').innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\'mFollowUp\')">Batal</button>' +
+                    '<button class="btn btn-primary btn-sm" onclick="_fuPreview()">Lanjut →</button>';
+                openModal('mFollowUp');
+            }
+
+            function _fuPreview() {
+                var mode = S._fuMode, row = findRow(S._fuRI), pics = S._fuPICs;
+                if (!row) return;
+                var sel = document.querySelector('#fuBody input[name="fuPic"]:checked');
+                if (!sel) { toast('Pilih penerima.', 'toast-error'); return; }
+                var pic = pics[parseInt(sel.value)];
+                S._fuSelectedPIC = pic;
+                var isWA = mode === 'wa';
+                var msg = isWA ? _fuBuildWAMsg(row, pic['Nama PIC']) : _fuBuildEmailBody(row, pic['Nama PIC']);
+                S._fuMsg = msg;
+
+                var contact = isWA ? (pic['Nomor WA PIC'] || '-') : (pic['Email PIC'] || '-');
+                var html = '<div class="fu-section-label">Penerima</div>' +
+                    '<div style="margin-bottom:14px;font-size:13px"><strong>' + escH(pic['Nama PIC'] || '-') + '</strong> — ' + (isWA ? '💬 ' : '📧 ') + escH(contact) + '</div>';
+                if (!isWA) {
+                    html += '<div class="fu-section-label">Subject</div>' +
+                        '<div style="margin-bottom:14px;font-size:13px;font-weight:600">Follow-up Tindak Lanjut Temuan Audit - ' + escH(row['Judul Audit'] || '') + '</div>';
+                }
+                html += '<div class="fu-section-label">Preview Pesan</div><div class="fu-preview">' + escH(msg) + '</div>';
+                $('fuBody').innerHTML = html;
+                $('fuFoot').innerHTML = '<button class="btn btn-ghost" onclick="_fuBackToPicker()">← Kembali</button>' +
+                    '<button class="btn btn-primary btn-sm" onclick="_fuSend()">' + (isWA ? '💬 Buka WhatsApp' : '📧 Buka Email') + '</button>';
+            }
+
+            function _fuBackToPicker() {
+                var row = findRow(S._fuRI);
+                if (!row) return;
+                var pics = _fuFindPICs(row);
+                _fuShowPicker(S._fuMode, pics, row);
+            }
+
+            function _fuSend() {
+                var mode = S._fuMode, row = findRow(S._fuRI), pic = S._fuSelectedPIC;
+                if (!row || !pic) return;
+
+                if (mode === 'wa') {
+                    var num = pic['Nomor WA PIC'] || '';
+                    if (!num) { toast('Nomor WA tidak tersedia.', 'toast-error'); return; }
+                    window.open(_waLink(num) + '?text=' + encodeURIComponent(S._fuMsg), '_blank');
+                    toast('WhatsApp terbuka. Periksa dan kirim pesan.', 'toast-success');
+                } else {
+                    var email = pic['Email PIC'] || '';
+                    if (!email) { toast('Email tidak tersedia.', 'toast-error'); return; }
+                    var subject = 'Follow-up Tindak Lanjut Temuan Audit - ' + (row['Judul Audit'] || '');
+                    window.open('mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(S._fuMsg), '_self');
+                    toast('Email client terbuka. Periksa dan kirim pesan.', 'toast-success');
+                }
+
+                API.logFollowUp(S.user, mode, pic['Nama PIC'] || '', { No: row['No'] || '', 'Judul Audit': row['Judul Audit'] || '', Rekomendasi: row['Rekomendasi'] || '', Divisi: row['Divisi'] || '' }).catch(function () {});
+                closeModal('mFollowUp');
+            }
+
+            /* ══════════════════════════════════════
                PIC EDIT
             ══════════════════════════════════════ */
             function openPICEdit(ri) {
@@ -6956,18 +7137,16 @@
                 $('detBody').innerHTML = fields.map(f => '<div class="detail-row"><div class="det-lbl">' + f[0] + '</div><div class="det-val">' + f[1] + '</div></div>').join('');
                 var foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button>';
                 if (canEdit(S.user.role)) {
-                    // Saat ada Request Close pending, tampilkan pair Approve/Tolak (alur approval),
-                    // sembunyikan tombol Hapus untuk menghindari mis-klik destruktif.
-                    // Tombol Hapus baru muncul kembali pada baris reguler (tidak ada request pending).
                     var isPendingClose = row['Request Close'] === 'Ya' && row['Status'] !== 'Close';
                     foot = '<button class="btn btn-ghost" onclick="closeModal(\'mDetail\')">Tutup</button>' +
+                        '<button class="btn btn-subtle btn-sm" style="color:var(--green)" onclick="openFollowUp(\'wa\',' + ri + ')">💬 Follow-up WA</button>' +
+                        '<button class="btn btn-subtle btn-sm" style="color:var(--tj-blue)" onclick="openFollowUp(\'email\',' + ri + ')">📧 Follow-up Email</button>' +
                         '<button class="btn btn-subtle btn-sm" onclick="closeModal(\'mDetail\');openAdminEdit(' + ri + ')">✏️ Edit</button>' +
                         (isPendingClose
                             ? '<button class="btn btn-green btn-sm" onclick="closeModal(\'mDetail\');approveClose(' + ri + ')">✓ Approve Close</button>' +
                               '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');rejectClose(' + ri + ')">✕ Tolak Close</button>'
                             : '<button class="btn btn-red btn-sm" onclick="closeModal(\'mDetail\');delConfirm(' + ri + ')">🗑 Hapus</button>');
                 } else if (!isAdmin) {
-                    // PIC → boleh update progress
                     foot += '<button class="btn btn-amber" onclick="closeModal(\'mDetail\');openPICEdit(' + ri + ')">✏️ Update Progress</button>';
                 }
                 // Manajemen (isAdmin view tapi bukan canEdit) → hanya tombol Tutup
