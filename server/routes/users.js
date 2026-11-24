@@ -257,4 +257,116 @@ router.delete('/delete/:username', async (req, res) => {
   }
 });
 
+/* ════════════════════════════════════════════════════
+   KONTAK USER (PIC) CRUD — Admin only
+════════════════════════════════════════════════════ */
+
+const KONTAK_SHEET   = 'Kontak PIC';
+const KONTAK_HEADERS = ['Nama PIC', 'Nomor WA PIC', 'Email PIC', 'Nama Departemen', 'Nama Divisi', 'Catatan'];
+
+/**
+ * GET /api/users/contacts?role=Admin
+ */
+router.get('/contacts', async (req, res) => {
+  try {
+    const { role } = req.query;
+    if (role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Akses ditolak: hanya Admin.' });
+    }
+    const rawData = await sheetsService.getSheetData(KONTAK_SHEET);
+    if (!rawData || rawData.length < 2) {
+      return res.json({ success: true, contacts: [] });
+    }
+    const contacts = sheetsService.rowsToObjects(rawData);
+    console.log(`✓ Contacts fetched: ${contacts.length} PIC`);
+    res.json({ success: true, contacts });
+  } catch (err) {
+    console.error('❌ Failed to fetch contacts:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data kontak.' });
+  }
+});
+
+/**
+ * POST /api/users/contacts/add
+ */
+router.post('/contacts/add', async (req, res) => {
+  try {
+    const { role, data } = req.body;
+    if (role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Akses ditolak: hanya Admin.' });
+    }
+    if (!data || !data['Nama PIC'] || !data['Nomor WA PIC'] || !data['Email PIC'] || !data['Nama Departemen'] || !data['Nama Divisi']) {
+      return res.status(400).json({ success: false, message: 'Nama PIC, Nomor WA, Email, Departemen, dan Divisi wajib diisi.' });
+    }
+    const row = KONTAK_HEADERS.map(h => String(data[h] || '').trim());
+    await sheetsService.appendRows(KONTAK_SHEET, [row]);
+    console.log(`✓ Contact added: ${data['Nama PIC']}`);
+    res.json({ success: true, message: 'Kontak PIC berhasil ditambahkan.' });
+  } catch (err) {
+    console.error('❌ Failed to add contact:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal menambah kontak.' });
+  }
+});
+
+/**
+ * PUT /api/users/contacts/update/:rowIndex
+ */
+router.put('/contacts/update/:rowIndex', async (req, res) => {
+  try {
+    const rowIndex = parseInt(req.params.rowIndex);
+    const { role, data, verifyNama } = req.body;
+    if (role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Akses ditolak: hanya Admin.' });
+    }
+    if (isNaN(rowIndex) || rowIndex < 2) {
+      return res.status(400).json({ success: false, message: 'Row index tidak valid.' });
+    }
+    const rawData = await sheetsService.getSheetData(KONTAK_SHEET, true);
+    if (!rawData || rowIndex > rawData.length) {
+      return res.status(404).json({ success: false, message: 'Record tidak ditemukan.' });
+    }
+    const existing = rawData[rowIndex - 1];
+    if (verifyNama && String(existing[0] || '').trim() !== String(verifyNama).trim()) {
+      return res.status(409).json({ success: false, message: 'Data telah berubah. Muat ulang halaman dan coba lagi.' });
+    }
+    const updatedRow = KONTAK_HEADERS.map(h => String(data[h] || '').trim());
+    await sheetsService.updateRow(KONTAK_SHEET, rowIndex, updatedRow);
+    console.log(`✓ Contact updated: row ${rowIndex} — ${data['Nama PIC']}`);
+    res.json({ success: true, message: 'Kontak PIC berhasil diperbarui.' });
+  } catch (err) {
+    console.error('❌ Failed to update contact:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal memperbarui kontak.' });
+  }
+});
+
+/**
+ * DELETE /api/users/contacts/delete/:rowIndex
+ */
+router.delete('/contacts/delete/:rowIndex', async (req, res) => {
+  try {
+    const rowIndex = parseInt(req.params.rowIndex);
+    const { role, verifyNama } = req.query;
+    if (role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Akses ditolak: hanya Admin.' });
+    }
+    if (isNaN(rowIndex) || rowIndex < 2) {
+      return res.status(400).json({ success: false, message: 'Row index tidak valid.' });
+    }
+    const rawData = await sheetsService.getSheetData(KONTAK_SHEET, true);
+    if (!rawData || rowIndex > rawData.length) {
+      return res.status(404).json({ success: false, message: 'Record tidak ditemukan.' });
+    }
+    const existing = rawData[rowIndex - 1];
+    if (verifyNama && String(existing[0] || '').trim() !== String(verifyNama).trim()) {
+      return res.status(409).json({ success: false, message: 'Data telah berubah. Muat ulang halaman dan coba lagi.' });
+    }
+    await sheetsService.deleteRow(KONTAK_SHEET, rowIndex);
+    console.log(`✓ Contact deleted: row ${rowIndex}`);
+    res.json({ success: true, message: 'Kontak PIC berhasil dihapus.' });
+  } catch (err) {
+    console.error('❌ Failed to delete contact:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal menghapus kontak.' });
+  }
+});
+
 module.exports = router;
