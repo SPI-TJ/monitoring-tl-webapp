@@ -2909,6 +2909,28 @@
             color: var(--red);
         }
 
+        /* ── Searchable dropdown (org structure) ── */
+        .sd-wrap { position: relative; z-index: 1; }
+        .sd-wrap:focus-within { z-index: 100; }
+        .sd-wrap input[type="text"] { width: 100%; padding-right: 28px; }
+        .sd-wrap .sd-arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); font-size: 10px; }
+        .sd-list {
+            display: none; position: absolute; z-index: 120; left: 0; right: 0; top: 100%;
+            max-height: 180px; overflow-y: auto;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            box-shadow: 0 6px 16px rgba(0,0,0,.12); margin-top: 2px;
+        }
+        .sd-list.open { display: block; }
+        .sd-item {
+            padding: 7px 12px; font-size: 13px; cursor: pointer; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sd-item:hover, .sd-item.sd-hl { background: var(--tj-blue-pale); color: var(--tj-blue); }
+        .sd-clear { color: var(--red); font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--border); }
+        .sd-clear:hover { background: rgba(155,28,28,.08); color: var(--red); }
+        .sd-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); font-style: italic; }
+        .sd-loading { padding: 8px 12px; font-size: 12px; color: var(--text3); text-align: center; }
+
         /* Section heading (numbered) — dipakai di modal Update Progres */
         .sec-head {
             display: flex;
@@ -4739,7 +4761,8 @@
                     getUsers: () => fetch(API_BASE + '/users').then(r => r.json()),
                     addUser: (u, p, r, d, n) => fetch(API_BASE + '/users/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
                     updateUser: (u, p, r, d, n) => fetch(API_BASE + '/users/update/' + u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p, role: r, divisi: d, nama: n }) }).then(r => r.json()),
-                    deleteUser: u => fetch(API_BASE + '/users/delete/' + u, { method: 'DELETE' }).then(r => r.json())
+                    deleteUser: u => fetch(API_BASE + '/users/delete/' + u, { method: 'DELETE' }).then(r => r.json()),
+                    getOrgStructure: () => fetch(API_BASE + '/data/org-structure').then(r => r.json())
                 };
             })();
         </script>
@@ -4760,7 +4783,8 @@
                 /* Summary / Audit Explorer: mode pencarian, query, dan flag sudah-search. */
                 sumMode: 'judul', sumQuery: '', sumSearched: false,
                 /* Log Activity (Audit Trail): data + state filter/sort + timestamp fetch terakhir. */
-                actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
+                actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} },
+                orgData: null
             };
 
             /* Tab Admin: Tidak ada actlog */
@@ -6674,6 +6698,126 @@
             function cr(l, v) { return '<div class="confirm-row"><span class="conf-lbl">' + l + '</span><span class="conf-val">' + v + '</span></div>'; }
 
             /* ══════════════════════════════════════
+               ORG STRUCTURE — cascading dropdown
+            ══════════════════════════════════════ */
+            var _orgFields = ['Kode Direktorat', 'Divisi', 'Departemen'];
+            var _orgKeyMap = { 'Kode Direktorat': 'kodeDirektorat', 'Divisi': 'divisi', 'Departemen': 'departemen' };
+            var _orgListItems = {};
+
+            function _fetchOrgData(cb) {
+                if (S.orgData) { cb(S.orgData); return; }
+                API.getOrgStructure().then(function (r) {
+                    if (r && r.success) { S.orgData = r.data || []; cb(S.orgData); }
+                    else { cb([]); }
+                }).catch(function () { cb([]); });
+            }
+
+            function _orgFilteredOpts(field) {
+                if (!S.orgData || !S.orgData.length) return [];
+                var key = _orgKeyMap[field];
+                var filtered = S.orgData;
+                _orgFields.forEach(function (f) {
+                    if (f === field) return;
+                    var el = $('ae_' + f);
+                    var v = el ? el.value.trim() : '';
+                    if (!v) return;
+                    var k = _orgKeyMap[f];
+                    if (S.orgData.some(function (r) { return r[k] === v; })) {
+                        filtered = filtered.filter(function (r) { return r[k] === v; });
+                    }
+                });
+                var seen = {}, opts = [];
+                filtered.forEach(function (r) { var val = r[key]; if (val && !seen[val]) { seen[val] = 1; opts.push(val); } });
+                return opts.sort();
+            }
+
+            function _orgRender(field) {
+                var listEl = $('sd_' + field);
+                if (!listEl) return;
+                var input = $('ae_' + field);
+                var q = input ? input.value.trim().toLowerCase() : '';
+                var opts = _orgFilteredOpts(field);
+                if (q) opts = opts.filter(function (o) { return o.toLowerCase().indexOf(q) !== -1; });
+                _orgListItems[field] = opts;
+                if (!S.orgData) { listEl.innerHTML = '<div class="sd-loading">Memuat data…</div>'; return; }
+                if (!opts.length) { listEl.innerHTML = '<div class="sd-empty">Tidak ada data</div>'; return; }
+                var clearBtn = (input && input.value.trim()) ? '<div class="sd-item sd-clear" onmousedown="_orgClear(\'' + field.replace(/'/g, "\\'") + '\')">✕ Hapus Pilihan</div>' : '';
+                listEl.innerHTML = clearBtn + opts.map(function (o, i) {
+                    return '<div class="sd-item" onmousedown="_orgPick(\'' + field.replace(/'/g, "\\'") + '\',' + i + ')">' + escH(o) + '</div>';
+                }).join('');
+            }
+
+            function _orgPick(field, idx) {
+                var val = (_orgListItems[field] || [])[idx] || '';
+                var el = $('ae_' + field);
+                if (el) el.value = val;
+                var listEl = $('sd_' + field);
+                if (listEl) listEl.classList.remove('open');
+                _orgCascade(field);
+            }
+
+            function _orgCascade(changed) {
+                if (!S.orgData || !S.orgData.length) return;
+                var cEl = $('ae_' + changed);
+                var cVal = cEl ? cEl.value.trim() : '';
+                var cKey = _orgKeyMap[changed];
+                if (cVal && !S.orgData.some(function (r) { return r[cKey] === cVal; })) return;
+                _orgFields.forEach(function (f) {
+                    if (f === changed) return;
+                    var el = $('ae_' + f);
+                    if (!el) return;
+                    var cur = el.value.trim();
+                    var opts = _orgFilteredOpts(f);
+                    if (cur && opts.length && opts.indexOf(cur) === -1) el.value = '';
+                    if (opts.length === 1 && !el.value.trim()) el.value = opts[0];
+                });
+            }
+
+            var _orgSkipBlur = {};
+            function _orgClear(field) {
+                var el = $('ae_' + field);
+                if (el) el.value = '';
+                var l = $('sd_' + field);
+                if (l) l.classList.remove('open');
+                _orgSkipBlur[field] = true;
+            }
+            function _orgOpen(field) { _orgRender(field); var l = $('sd_' + field); if (l) l.classList.add('open'); }
+            function _orgTyping(field) { _orgRender(field); var l = $('sd_' + field); if (l) l.classList.add('open'); }
+            function _orgBlur(field) { setTimeout(function () { var l = $('sd_' + field); if (l) l.classList.remove('open'); }, 160); setTimeout(function () { if (_orgSkipBlur[field]) { _orgSkipBlur[field] = false; return; } _orgCascade(field); }, 200); }
+
+            function _initOrgDropdowns() {
+                _fetchOrgData(function () { _orgFields.forEach(function (f) { _orgRender(f); }); });
+            }
+
+            /* ── Simple searchable dropdown (data-sourced) ── */
+            var _sdSimpleItems = {};
+            function _sdUniqueVals(col) {
+                var seen = {}, vals = [];
+                (S.allRows || []).forEach(function (r) { var v = String(r[col] || '').trim(); if (v && !seen[v]) { seen[v] = 1; vals.push(v); } });
+                return vals.sort();
+            }
+            function _sdRender(col) {
+                var listEl = $('sd_' + col); if (!listEl) return;
+                var input = $('ae_' + col);
+                var q = input ? input.value.trim().toLowerCase() : '';
+                var all = _sdUniqueVals(col);
+                var opts = q ? all.filter(function (o) { return o.toLowerCase().indexOf(q) !== -1; }) : all;
+                _sdSimpleItems[col] = opts;
+                var clearBtn = (input && input.value.trim()) ? '<div class="sd-item sd-clear" onmousedown="_sdClear(\'' + col.replace(/'/g, "\\'") + '\')">✕ Hapus Pilihan</div>' : '';
+                if (!opts.length) { listEl.innerHTML = clearBtn + '<div class="sd-empty">Tidak ada data</div>'; return; }
+                listEl.innerHTML = clearBtn + opts.map(function (o, i) {
+                    return '<div class="sd-item" onmousedown="_sdPick(\'' + col.replace(/'/g, "\\'") + '\',' + i + ')">' + escH(o) + '</div>';
+                }).join('');
+            }
+            function _sdPick(col, idx) { var el = $('ae_' + col); if (el) el.value = (_sdSimpleItems[col] || [])[idx] || ''; var l = $('sd_' + col); if (l) l.classList.remove('open'); }
+            function _sdClear(col) { var el = $('ae_' + col); if (el) el.value = ''; var l = $('sd_' + col); if (l) l.classList.remove('open'); }
+            function _sdOpen(col) { _sdRender(col); var l = $('sd_' + col); if (l) l.classList.add('open'); }
+            function _sdTyping(col) { _sdRender(col); var l = $('sd_' + col); if (l) l.classList.add('open'); }
+            function _sdBlur(col) { setTimeout(function () { var l = $('sd_' + col); if (l) l.classList.remove('open'); }, 160); }
+
+            var _sdFields = ['Jenis Pemeriksaan', 'Kategori Pemeriksaan'];
+
+            /* ══════════════════════════════════════
                ADMIN EDIT / ADD
             ══════════════════════════════════════ */
             function buildAdminForm(row) {
@@ -6681,11 +6825,13 @@
                     var v = row && row[c] !== undefined ? row[c] : '';
                     if (c === 'Status') return fc(c, '<select id="ae_' + c + '"><option value="Open"' + ((!row || v === 'Open') ? ' selected' : '') + '>Open</option><option value="Close"' + (v === 'Close' ? ' selected' : '') + '>Close</option></select>');
                     if (c === 'Request Close') return fc(c, '<select id="ae_' + c + '"><option value="Belum"' + ((!row || v === 'Belum') ? ' selected' : '') + '>Belum</option><option value="Ya"' + (v === 'Ya' ? ' selected' : '') + '>Ya</option></select>');
+                    if (_sdFields.indexOf(c) !== -1) return fc(c, '<div class="sd-wrap"><input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '" onfocus="_sdOpen(\'' + c + '\')" oninput="_sdTyping(\'' + c + '\')" onblur="_sdBlur(\'' + c + '\')" autocomplete="off" placeholder="Ketik untuk mencari…"/><span class="sd-arrow">▼</span><div class="sd-list" id="sd_' + c + '"></div></div>');
                     if (['Temuan Pemeriksaan', 'Rekomendasi', 'Tindak Lanjut', 'Tanggapan Auditee', 'Catatan'].includes(c)) return '<div class="form-col full"><span class="form-label">' + c + (c === 'Rekomendasi' || c === 'Temuan Pemeriksaan' ? ' <span class="req">*</span>' : '') + '</span><textarea id="ae_' + c + '" rows="3">' + escH(String(v)) + '</textarea></div>';
                     if (c === 'Progres%') return fc(c, '<input type="number" id="ae_' + c + '" min="0" max="100" value="' + escH(String(v || 0)) + '"/>');
                     if (['Tanggal Laporan', 'Due Date', 'Tanggal Close'].includes(c)) return fc(c, '<input type="date" id="ae_' + c + '" value="' + fmtDateInp(v) + '"/>');
                     if (c === 'Link Evidence') return '<div class="form-col full"><span class="form-label">' + c + '</span><input type="text" id="ae_' + c + '" placeholder="https://drive.google.com/… (Pastikan link dapat diakses admin SPI)" value="' + escH(String(v)) + '"/></div>';
                     if (c === 'Judul Audit') return '<div class="form-col full"><span class="form-label">' + c + ' <span class="req">*</span></span><input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '"/></div>';
+                    if (_orgFields.indexOf(c) !== -1) return fc(c, '<div class="sd-wrap"><input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '" onfocus="_orgOpen(\'' + c + '\')" oninput="_orgTyping(\'' + c + '\')" onblur="_orgBlur(\'' + c + '\')" autocomplete="off" placeholder="Ketik untuk mencari…"/><span class="sd-arrow">▼</span><div class="sd-list" id="sd_' + c + '"></div></div>');
                     return fc(c, '<input type="text" id="ae_' + c + '" value="' + escH(String(v)) + '"/>');
                 });
                 return '<div class="form-grid">' + f.join('') + '</div>';
@@ -6693,8 +6839,8 @@
             function fc(lbl, inp) { return '<div class="form-col"><span class="form-label">' + lbl + '</span>' + inp + '</div>'; }
             function getAEVals() { var o = {}; ADMIN_COLS.forEach(c => { var el = $('ae_' + c); if (el) o[c] = el.value; }); return o; }
             function _snapAdmin() { S._adminSnap = getAEVals(); }
-            function openAdminEdit(ri) { var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; } S.editIdx = ri; $('adminTitle').textContent = '✏️ Edit Data Temuan'; $('adminBody').innerHTML = buildAdminForm(row); _snapAdmin(); openModal('mAdmin'); }
-            function openAddRow() { S.editIdx = null; $('adminTitle').textContent = '✏️ Input Temuan Baru'; $('adminBody').innerHTML = buildAdminForm(null); var el = $('ae_Tanggal Laporan'); if (el) el.value = new Date().toISOString().split('T')[0]; _snapAdmin(); openModal('mAdmin'); }
+            function openAdminEdit(ri) { var row = findRow(ri); if (!row) { toast('Tidak ditemukan.', 'toast-error'); return; } S.editIdx = ri; $('adminTitle').textContent = '✏️ Edit Data Temuan'; $('adminBody').innerHTML = buildAdminForm(row); _snapAdmin(); _initOrgDropdowns(); openModal('mAdmin'); }
+            function openAddRow() { S.editIdx = null; $('adminTitle').textContent = '✏️ Input Temuan Baru'; $('adminBody').innerHTML = buildAdminForm(null); var el = $('ae_Tanggal Laporan'); if (el) el.value = new Date().toISOString().split('T')[0]; _snapAdmin(); _initOrgDropdowns(); openModal('mAdmin'); }
             function saveAdminEdit() {
                 var btn = $('btnSaveAdmin'); btn.innerHTML = '<span class="spinner"></span> Menyimpan…'; btn.disabled = true;
                 if (S.editIdx === null) {
