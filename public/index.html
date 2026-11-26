@@ -5081,7 +5081,7 @@
                 else if (tab === 'users') loadUsers();
             }
 
-            function goToStatus(st) { S.pendingStatusFilter = st; S.pendingDashYear = S.dashYear || null; S.pendingDashMonth = S.dashMonth || null; switchTab('data'); }
+            function goToStatus(st) { S.pendingStatusFilter = st; S.pendingDashYear = S.dashYear || null; S.pendingDashMonth = S.dashMonth || null; S.pendingDashKategori = S.dashKategori || null; S.pendingDashJenis = (S.dashJenis || []).slice(); switchTab('data'); }
             function goToOverdue() { goToStatus('Overdue'); }
             function goToRequestClose() { switchTab('request'); }
 
@@ -5884,7 +5884,11 @@
 
             function renderTable(q, stF, rcF, divF, deptF, katF) {
                 q = q !== undefined ? q : getFV('srchInput');
-                if (S.pendingStatusFilter) { stF = S.pendingStatusFilter; S.pendingStatusFilter = null; S.activeOverdueFilter = stF === 'Overdue'; S.activePicStatusFilter = !isAdminRole(S.user.role) ? stF : null; S.tableDashYear = S.pendingDashYear || null; S.tableDashMonth = S.pendingDashMonth || null; S.pendingDashYear = null; S.pendingDashMonth = null; }
+                if (S.pendingStatusFilter) { stF = S.pendingStatusFilter; S.pendingStatusFilter = null; S.activeOverdueFilter = stF === 'Overdue'; S.activePicStatusFilter = !isAdminRole(S.user.role) ? stF : null; S.tableDashYear = S.pendingDashYear || null; S.tableDashMonth = S.pendingDashMonth || null; S.pendingDashYear = null; S.pendingDashMonth = null;
+                    // Ikuti filter Kategori & Jenis Pemeriksaan dari Dashboard (khusus saat datang dari card).
+                    S.tableKategori = S.pendingDashKategori || null; S.tableJenis = S.pendingDashJenis || [];
+                    S.pendingDashKategori = null; S.pendingDashJenis = null;
+                    if (katF === undefined && S.tableKategori) katF = S.tableKategori; }
                 else if (stF !== undefined) { /* stF sudah diberikan via parameter */ }
                 else if (S.activePicStatusFilter && !isAdminRole(S.user.role)) { stF = S.activePicStatusFilter; }
                 else if (S.activeOverdueFilter && !isAdminRole(S.user.role)) { stF = 'Overdue'; }
