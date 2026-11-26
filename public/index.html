@@ -4867,7 +4867,7 @@
                 page: 1, PAGE: 50, tab: 'dashboard',
                 sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
                 /* Kurva S: mode sumbu-X ('bulanan' | 'harian'). Pivot: state search & sort. */
-                sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
+                sCurveMode: 'harian', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
                 /* Summary / Audit Explorer: mode pencarian, query, dan flag sudah-search. */
                 sumMode: 'judul', sumQuery: '', sumSearched: false,
                 /* Log Activity (Audit Trail): data + state filter/sort + timestamp fetch terakhir. */
@@ -5013,7 +5013,7 @@
                     user: null, allRows: [], filtered: [], stats: null, editIdx: null, delIdx: null,
                     editUser: null, pending: [], page: 1, PAGE: 50, tab: 'dashboard',
                     sortBy: null, sortDir: null, dashMonth: null, dashYear: null, dashKategori: null, tableKategori: null, dashJenis: [], tableJenis: [], charts: {},
-                    sCurveMode: 'bulanan', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
+                    sCurveMode: 'harian', pivotSearch: '', pivotSort: { key: '__total', dir: 'desc' },
                     sumMode: 'judul', sumQuery: '', sumSearched: false,
                     actlog: { data: [], loaded: false, loading: false, lastFetch: null, fltDateFrom: '', fltDateTo: '', fltUser: '', fltRole: '', fltAction: '', fltJudul: '', fltDivisi: '', search: '', sort: 'desc', expanded: {} }
                 };
@@ -5220,15 +5220,20 @@
 
                 // ── Kurva S — HANYA tampil saat filter Jenis Pemeriksaan 'KNKT' aktif ──
                 // (S-curve khusus pelaporan progress audit KNKT). Dropdown Harian/Bulanan dipertahankan.
-                var showSCurve = (S.dashJenis || []).indexOf('KNKT') >= 0;
+                // Juga untuk 'ISO 27001'. Tampil HANYA bila tepat SATU jenis dipilih (KNKT atau ISO 27001);
+                // jika keduanya (atau jenis lain) dipilih bersamaan → disembunyikan.
+                var _scSel = S.dashJenis || [];
+                var _scKey = _scSel.length === 1 ? String(_scSel[0]).toLowerCase().replace(/[\s_-]+/g, '') : '';
+                var showSCurve = _scKey === 'knkt' || _scKey === 'iso27001';
+                var _scLabel = showSCurve ? String(_scSel[0]).trim() : '';
                 var sCurveCard = !showSCurve ? '' : '<div class="charts-grid charts-1">' +
                     '<div class="chart-card"><div class="cc-head">' +
-                    '<div><div class="cc-title">📈 Kurva S — Progress Kumulatif Tindak Lanjut (KNKT)</div>' +
+                    '<div><div class="cc-title">📈 Kurva S — Progress Kumulatif Tindak Lanjut (' + escH(_scLabel) + ')</div>' +
                     '<div class="cc-sub">Akumulasi penyelesaian (Close) terhadap total rekomendasi — mengikuti filter aktif</div></div>' +
                     '<div style="display:flex;align-items:center;gap:8px">' +
                     '<select class="mf-year-sel" onchange="setSCurveMode(this.value)" style="min-width:104px" title="Granularitas sumbu waktu">' +
-                    '<option value="bulanan"' + (S.sCurveMode !== 'harian' ? ' selected' : '') + '>Bulanan</option>' +
-                    '<option value="harian"' + (S.sCurveMode === 'harian' ? ' selected' : '') + '>Harian</option>' +
+                    '<option value="bulanan"' + (S.sCurveMode === 'bulanan' ? ' selected' : '') + '>Bulanan</option>' +
+                    '<option value="harian"' + (S.sCurveMode !== 'bulanan' ? ' selected' : '') + '>Harian</option>' +
                     '</select><span class="cc-icon">🧮</span></div>' +
                     '</div><div class="cc-body cc-body-wide"><canvas id="chartSCurve"></canvas></div></div></div>';
 
@@ -5252,7 +5257,7 @@
             }
 
             /* Ganti granularitas Kurva S (Harian/Bulanan) — sinkron dengan filter dashboard. */
-            function setSCurveMode(m) { S.sCurveMode = (m === 'harian') ? 'harian' : 'bulanan'; renderDashboard(); }
+            function setSCurveMode(m) { S.sCurveMode = (m === 'bulanan') ? 'bulanan' : 'harian'; renderDashboard(); }
 
             /* ── Trend data: % Close KUMULATIF pada TIMELINE BULANAN KONTINU ───────
                Sumbu-X = setiap bulan dari bulan registrasi TL pertama s.d. bulan terakhir
@@ -5648,7 +5653,7 @@
                 // ─── Kurva S (semua role): line chart kumulatif % Close mengikuti filter ───
                 var scEl = document.getElementById('chartSCurve');
                 if (scEl) {
-                    var sd = buildSCurveData(filterDashRows(), S.sCurveMode);
+                    var sd = buildSCurveData(filterDashRows(), S.sCurveMode === 'bulanan' ? 'bulanan' : 'harian');
                     if (sd.labels.length > 0) {
                         var sctx = scEl.getContext('2d');
                         var sgrad = sctx.createLinearGradient(0, 0, 0, 300);
