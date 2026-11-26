@@ -5828,12 +5828,13 @@
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 // Segmen clickable → Data Temuan (Admin) / Data Divisi Saya (PIC), seperti card Dashboard.
-                                // Dataset: 0=Open(belum overdue), 1=Overdue, 2=Close. PIC tidak bisa melihat Close (sama seperti card).
+                                // Dataset: 0=Open, 1=Overdue, 2=Close → memakai status filter yang sudah ada di tabel.
+                                // PIC tidak bisa melihat Close (sama seperti card).
                                 onClick: function (evt, els) {
                                     if (!els || !els.length) return;
                                     var el = els[0];
                                     if (el.datasetIndex === 2 && !isAdmin) return;
-                                    var st = ['NonOverdue', 'Overdue', 'Close'][el.datasetIndex];
+                                    var st = ['Open', 'Overdue', 'Close'][el.datasetIndex];
                                     goToChartSegment(st, sbKeys[el.index], isAdmin);
                                 },
                                 onHover: function (evt, els) {
@@ -5940,7 +5941,7 @@
                 // baris ber-status turunan 'Close' (Open & Proses tetap tampil). PIC tidak punya
                 // dropdown status, jadi stF diabaikan untuk PIC — kecuali 'Overdue' (dari card Dashboard).
                 var hideClose = !isAdmin;
-                if (hideClose && stF !== 'Overdue' && stF !== 'Open' && stF !== 'Proses' && stF !== 'NonOverdue') stF = '';
+                if (hideClose && stF !== 'Overdue' && stF !== 'Open' && stF !== 'Proses') stF = '';
                 S.tableKategori = katF || null;
 
                 // Daftar Jenis Pemeriksaan yang tersedia — DIBATASI oleh Kategori yang dipilih.
@@ -5974,9 +5975,7 @@
                     var dSt = deriveStatus(r);
                     var stMatch;
                     if (!stF) { stMatch = true; }
-                    else if (stF === 'Overdue') { stMatch = _isOverdue(r); }
-                    else if (stF === 'NonOverdue') { stMatch = dSt !== 'Close' && !_isOverdue(r); }   // = segmen "Open" di stacked bar Dashboard
-                    else { stMatch = dSt === stF; }
+                    else if (stF === 'Overdue') { stMatch = _isOverdue(r); }                    else { stMatch = dSt === stF; }
                     if (_tblYear || _tblMonth) {
                         if (!r['Due Date']) return false;
                         var _dd = new Date(r['Due Date']);
@@ -6131,7 +6130,7 @@
                     '<div class="toolbar dt-toolbar">' +
                     '<div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="srchInput" placeholder="Cari judul, rekomendasi, divisi…" value="' + escH(q) + '" oninput="debounce()" style="width:210px;padding-left:34px"/></div>' +
                     monthChipHtml +
-                    (isAdmin ? '<select id="fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option><option value="NonOverdue"' + (stF === 'NonOverdue' ? ' selected' : '') + '>Belum Overdue (Open+Proses)</option></select>' : (stF ? (function () { var _cc = stF === 'Overdue' ? 'var(--tj-red-light)' : stF === 'Open' ? 'var(--amber-light)' : 'var(--purple-light)'; var _ct = stF === 'Overdue' ? 'var(--tj-red)' : stF === 'Open' ? 'var(--amber)' : 'var(--purple)'; var _ic = stF === 'Overdue' ? '⚠' : stF === 'Open' ? '🟡' : '🔄'; return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + _cc + ';color:' + _ct + ';border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>' + _ic + ' ' + (stF === 'NonOverdue' ? 'Belum Overdue' : stF) + '</span><button onclick="clearFilters()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter">✕</button></span>'; })() : '')) +
+                    (isAdmin ? '<select id="fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : (stF ? (function () { var _cc = stF === 'Overdue' ? 'var(--tj-red-light)' : stF === 'Open' ? 'var(--amber-light)' : 'var(--purple-light)'; var _ct = stF === 'Overdue' ? 'var(--tj-red)' : stF === 'Open' ? 'var(--amber)' : 'var(--purple)'; var _ic = stF === 'Overdue' ? '⚠' : stF === 'Open' ? '🟡' : '🔄'; return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + _cc + ';color:' + _ct + ';border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;opacity:.85"><span>' + _ic + ' ' + stF + '</span><button onclick="clearFilters()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Hapus filter">✕</button></span>'; })() : '')) +
                     '<select id="fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:155px"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:130px"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()" style="min-width:150px"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
@@ -6146,7 +6145,7 @@
                     '<div class="filter-toggle-bar"><button class="filter-toggle-btn' + ftbCls + '" onclick="toggleFilterPanel()">🔽 Filter' + ftbBadge + '</button><button class="btn btn-ghost btn-sm" onclick="mobileSearch()" style="flex-shrink:0">🔍</button></div>' +
                     '<div class="filter-panel-mobile" id="filterPanelMobile">' +
                     '<div class="search-wrap" style="position:relative"><span class="search-ico">🔍</span><input type="text" id="m_srchInput" placeholder="Cari judul, rekomendasi…" value="' + escH(q) + '" oninput="mDebounce()" style="padding-left:34px"/></div>' +
-                    (isAdmin ? '<select id="m_fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option><option value="NonOverdue"' + (stF === 'NonOverdue' ? ' selected' : '') + '>Belum Overdue (Open+Proses)</option></select>' : '') +
+                    (isAdmin ? '<select id="m_fltStatus"' + (stF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Status</option><option value="Open"' + (stF === 'Open' ? ' selected' : '') + '>Open</option><option value="Proses"' + (stF === 'Proses' ? ' selected' : '') + '>Proses</option><option value="Close"' + (stF === 'Close' ? ' selected' : '') + '>Close</option><option value="Overdue"' + (stF === 'Overdue' ? ' selected' : '') + '>Overdue</option></select>' : '') +
                     '<select id="m_fltRC"' + (rcF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Req. Close</option><option value="Ya"' + (rcF === 'Ya' ? ' selected' : '') + '>Req. Close: Ya</option><option value="Belum"' + (rcF === 'Belum' ? ' selected' : '') + '>Req. Close: Belum</option></select>' +
                     (isAdmin ? '<select id="m_fltDivisi"' + (divF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Divisi</option>' + divOpts + '</select>' : '') +
                     '<select id="m_fltDept"' + (deptF ? ' class="select-active"' : '') + ' onchange="applyFilter()"><option value="">Semua Departemen</option>' + deptOpts + '</select>' +
