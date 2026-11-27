@@ -4683,7 +4683,7 @@
             <div class="modal modal-sm">
                 <div class="modal-head">
                     <h3 id="userTitle">Tambah User</h3>
-                    <button class="btn-close" onclick="closeModal('mUser')">✕</button>
+                    <button class="btn-close" onclick="guardClose('mUser')">✕</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-grid">
@@ -4734,7 +4734,7 @@
                     </div>
                 </div>
                 <div class="modal-foot">
-                    <button class="btn btn-ghost" onclick="closeModal('mUser')">Batal</button>
+                    <button class="btn btn-ghost" onclick="guardClose('mUser')">Batal</button>
                     <button class="btn btn-primary" id="btnSaveUser" onclick="saveUser()">💾 Simpan</button>
                 </div>
             </div>
@@ -4745,7 +4745,7 @@
             <div class="modal modal-sm">
                 <div class="modal-head">
                     <h3 id="ctTitle">Tambah PIC</h3>
-                    <button class="btn-close" onclick="closeModal('mContact')">✕</button>
+                    <button class="btn-close" onclick="guardClose('mContact')">✕</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-grid">
@@ -4758,8 +4758,8 @@
                             <input type="text" id="ct_wa" placeholder="08xxxxxxxxxx" />
                         </div>
                         <div class="form-col">
-                            <span class="form-label">Email <span class="req">*</span></span>
-                            <input type="email" id="ct_email" placeholder="email@domain.com" />
+                            <span class="form-label">Email</span>
+                            <input type="email" id="ct_email" placeholder="email@domain.com (opsional)" />
                         </div>
                         <div class="form-col">
                             <span class="form-label">Departemen <span class="req">*</span></span>
@@ -4784,7 +4784,7 @@
                     </div>
                 </div>
                 <div class="modal-foot">
-                    <button class="btn btn-ghost" onclick="closeModal('mContact')">Batal</button>
+                    <button class="btn btn-ghost" onclick="guardClose('mContact')">Batal</button>
                     <button class="btn btn-primary" id="btnSaveContact" onclick="saveContact()">💾 Simpan</button>
                 </div>
             </div>
@@ -7261,7 +7261,7 @@
                     '<div class="data-cards">' + uCards + '</div></div></div>';
                 showMain(userHtml + _buildContactsHtml());
             }
-            function openAddUser() { S.editUser = null; $('userTitle').textContent = 'Tambah User';['uUser', 'uPass', 'uDiv', 'uNama'].forEach(i => $(i).value = ''); $('uRole').value = 'PIC'; $('uUser').disabled = false; toggleDiv(); openModal('mUser'); }
+            function openAddUser() { S.editUser = null; $('userTitle').textContent = 'Tambah User';['uUser', 'uPass', 'uDiv', 'uNama'].forEach(i => $(i).value = ''); $('uRole').value = 'PIC'; $('uUser').disabled = false; toggleDiv(); S._userSnap = _snapField(USER_FIELDS); openModal('mUser'); }
             function openEditUser(username) {
                 S.editUser = username;
                 API.getUsers().then(function (r) {
@@ -7269,7 +7269,7 @@
                     var u = (r.users || []).find(x => x['Username'] === username); if (!u) { toast('User tidak ditemukan.', 'toast-error'); return; }
                     $('userTitle').textContent = 'Edit User: ' + username; $('uUser').value = u['Username'] || ''; $('uUser').disabled = true;
                     $('uPass').value = u['Password'] || ''; $('uRole').value = u['Role'] || 'PIC'; $('uDiv').value = u['Divisi'] || ''; $('uNama').value = u['Nama'] || '';
-                    toggleDiv(); openModal('mUser');
+                    toggleDiv(); S._userSnap = _snapField(USER_FIELDS); openModal('mUser');
                 }).catch(e => toast('Error: ' + e.message, 'toast-error'));
             }
             function togglePwdCell(btn, spanId) { var span = document.getElementById(spanId); if (!span) return; var isShowing = btn.dataset.show === '1'; span.textContent = isShowing ? btn.dataset.masked : btn.dataset.pwd; btn.title = isShowing ? 'Tampilkan Password' : 'Sembunyikan Password'; btn.dataset.show = isShowing ? '0' : '1'; }
@@ -7352,7 +7352,8 @@
             function openAddContact() {
                 S.editContactIdx = null; S._editContactVerify = null;
                 $('ctTitle').textContent = 'Tambah PIC';
-                ['ct_nama', 'ct_wa', 'ct_email', 'ct_dept', 'ct_div', 'ct_catatan'].forEach(function (id) { var el = $(id); if (el) el.value = ''; });
+                CONTACT_FIELDS.forEach(function (id) { var el = $(id); if (el) el.value = ''; });
+                S._contactSnap = _snapField(CONTACT_FIELDS);
                 _fetchOrgData(function () {}); openModal('mContact');
             }
             function openEditContact(ri) {
@@ -7367,13 +7368,14 @@
                 $('ct_dept').value = c['Nama Departemen'] || '';
                 $('ct_div').value = c['Nama Divisi'] || '';
                 $('ct_catatan').value = c['Catatan'] || '';
+                S._contactSnap = _snapField(CONTACT_FIELDS);
                 _fetchOrgData(function () {}); openModal('mContact');
             }
             function saveContact() {
                 var nama = $('ct_nama').value.trim(), wa = $('ct_wa').value.trim(), email = $('ct_email').value.trim();
                 var dept = $('ct_dept').value.trim(), div = $('ct_div').value.trim(), catatan = $('ct_catatan').value.trim();
-                if (!nama || !wa || !email || !dept || !div) { toast('Nama, No. WA, Email, Departemen, dan Divisi wajib diisi.', 'toast-error'); return; }
-                if (!_validateEmail(email)) { toast('Format email tidak valid.', 'toast-error'); return; }
+                if (!nama || !wa || !dept || !div) { toast('Nama, No. WA, Departemen, dan Divisi wajib diisi.', 'toast-error'); return; }
+                if (email && !_validateEmail(email)) { toast('Format email tidak valid.', 'toast-error'); return; }
                 if (!_validatePhone(wa)) { toast('Format nomor WA tidak valid.', 'toast-error'); return; }
                 var data = { 'Nama PIC': nama, 'Nomor WA PIC': wa, 'Email PIC': email, 'Nama Departemen': dept, 'Nama Divisi': div, 'Catatan': catatan };
                 var btn = $('btnSaveContact'); btn.innerHTML = '<span class="spinner"></span> Menyimpan…'; btn.disabled = true;
@@ -7839,11 +7841,13 @@
             })();
 
             function guardClose(id) {
-                if ((id === 'mPIC' || id === 'mAdmin') && _isEditDirty(id)) {
+                if (_isEditDirty(id)) {
                     if (!confirm('Perubahan belum disimpan. Tutup form?')) return;
                 }
                 closeModal(id);
             }
+            /* Mengembalikan false untuk modal yang tidak dijaga, sehingga guardClose
+               dan klik overlay cukup memanggil fungsi ini tanpa daftar id terpisah. */
             function _isEditDirty(overlayId) {
                 if (overlayId === 'mPIC' && S._picSnap) {
                     var sn = S._picSnap;
@@ -7853,11 +7857,25 @@
                     var cur = getAEVals(), prev = S._adminSnap;
                     return ADMIN_COLS.some(function (c) { return String(cur[c] || '') !== String(prev[c] || ''); });
                 }
+                if (overlayId === 'mContact' && S._contactSnap) {
+                    return _snapDirty(CONTACT_FIELDS, S._contactSnap);
+                }
+                if (overlayId === 'mUser' && S._userSnap) {
+                    return _snapDirty(USER_FIELDS, S._userSnap);
+                }
                 return false;
+            }
+            var CONTACT_FIELDS = ['ct_nama', 'ct_wa', 'ct_email', 'ct_dept', 'ct_div', 'ct_catatan'];
+            var USER_FIELDS = ['uUser', 'uPass', 'uRole', 'uDiv', 'uNama'];
+            function _snapField(ids) {
+                var snap = {}; ids.forEach(function (id) { var el = $(id); snap[id] = el ? el.value : ''; }); return snap;
+            }
+            function _snapDirty(ids, snap) {
+                return ids.some(function (id) { var el = $(id); return el && el.value !== snap[id]; });
             }
             document.querySelectorAll('.overlay').forEach(el => el.addEventListener('click', function (e) {
                 if (e.target !== el) return;
-                if ((el.id === 'mPIC' || el.id === 'mAdmin') && _isEditDirty(el.id)) {
+                if (_isEditDirty(el.id)) {
                     if (!confirm('Perubahan belum disimpan. Tutup form?')) return;
                 }
                 el.classList.remove('open');
